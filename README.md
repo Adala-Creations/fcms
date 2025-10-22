@@ -209,3 +209,25 @@ For support and questions, please contact the development team or create an issu
 ---
 
 **Note**: This is a frontend prototype. Backend integration and real data persistence would need to be implemented for a production system.
+
+## Backend configuration
+
+To point the frontend at your backend API, set the public environment variable `NEXT_PUBLIC_API_URL` in `.env.local` (this is required so the value is available in the browser). Example shown in `.env.local.example`.
+
+The codebase includes a small helper at `lib/api-client.ts` which reads `process.env.NEXT_PUBLIC_API_URL` and exposes `apiFetch(path, options)` to call the backend. Use it instead of hardcoded absolute URLs so the API base can be changed per-environment (dev/staging/production).
+
+Example usage:
+
+1. Copy `.env.local.example` to `.env.local` and edit the URL.
+2. In a component or page:
+
+```ts
+import { apiFetch, setAuthToken } from 'lib/api-client'
+
+// set a runtime token after login
+setAuthToken('ey...')
+
+const data = await apiFetch('/api/values')
+```
+
+Restart the dev server after editing `.env.local` so Next.js picks up the new environment variables.
