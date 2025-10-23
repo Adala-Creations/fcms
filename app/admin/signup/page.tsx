@@ -89,6 +89,10 @@ export default function AdminSignUp() {
             {error}
           </div>
         )}
+        
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-xs">
+          <strong>Password Requirements:</strong> At least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)
+        </div>
 
         <div>
           <Label htmlFor="username" className="block text-sm font-medium text-gray-700">

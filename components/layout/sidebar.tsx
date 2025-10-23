@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
@@ -20,6 +20,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { logout, getUserRole } from '@/lib/auth'
 import { Key } from 'lucide-react'
 
 interface SidebarProps {
@@ -218,8 +219,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
                   <button
                     onClick={() => {
                       setIsProfileOpen(false)
-                      // Navigate to landing page
-                      router.push('/')
+                      // Clear auth state and force navigation to sign-in, replacing history so back doesn't return
+                      try {
+                        logout()
+                      } catch {}
+                      const signinPath = process.env.NEXT_PUBLIC_SIGNIN_PATH || '/'
+                      // Use location.replace to prevent back navigation
+                      try { window.location.replace(signinPath) } catch { router.replace('/') }
                     }}
                     className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                   >

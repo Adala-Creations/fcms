@@ -148,7 +148,29 @@ export async function register(username: string, email: string, password: string
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Registration failed' }))
-    throw new Error(error.message || 'Registration failed')
+    // Extract detailed error messages from backend (validation errors, password requirements, etc.)
+    let errorMessage = 'Registration failed'
+    
+    if (error.message) {
+      errorMessage = error.message
+    } else if (error.errors) {
+      // Handle ASP.NET validation errors format
+      const validationErrors = []
+      for (const key in error.errors) {
+        if (Array.isArray(error.errors[key])) {
+          validationErrors.push(...error.errors[key])
+        } else {
+          validationErrors.push(error.errors[key])
+        }
+      }
+      if (validationErrors.length > 0) {
+        errorMessage = validationErrors.join('. ')
+      }
+    } else if (error.title) {
+      errorMessage = error.title
+    }
+    
+    throw new Error(errorMessage)
   }
 
   const data = await response.json()
@@ -195,6 +217,69 @@ export function logout(): void {
     localStorage.removeItem('userName')
     localStorage.removeItem('userRole')
     localStorage.removeItem('userRoles')
+  }
+}
+
+// Decode token expiry (exp claim) in seconds since epoch
+function getTokenExpiry(token: string): number | null {
+  const decoded = decodeJWT(token)
+  if (!decoded) return null
+  // exp is typically in seconds
+  if (typeof decoded.exp === 'number') return decoded.exp
+  if (typeof decoded.exp === 'string') return parseInt(decoded.exp, 10) || null
+  return null
+}
+
+let _expiryTimeout: any = null
+
+/**
+ * Check if a token is expired
+ */
+export function isTokenExpired(token?: string | null): boolean {
+  const t = token ?? getToken()
+  if (!t) return true
+  const exp = getTokenExpiry(t)
+  if (!exp) return true
+  const now = Math.floor(Date.now() / 1000)
+  return now >= exp
+}
+
+/**
+ * Initialize an auth expiry watcher that will call the provided callback when the token expires.
+ * If no callback is provided, it will perform a logout and reload to the root path.
+ */
+export function initAuthExpiryWatcher(onExpire?: () => void) {
+  if (typeof window === 'undefined') return
+  try {
+    const token = getToken()
+    if (!token) return
+    const exp = getTokenExpiry(token)
+    if (!exp) return
+
+    const now = Math.floor(Date.now() / 1000)
+    const msUntil = Math.max(0, (exp - now) * 1000)
+
+    // Clear existing
+    if (_expiryTimeout) clearTimeout(_expiryTimeout)
+
+    _expiryTimeout = setTimeout(() => {
+      // On expiry, perform logout and callback
+      logout()
+      if (onExpire) {
+        try { onExpire() } catch { }
+      } else {
+        try { window.location.replace('/') } catch { }
+      }
+    }, msUntil)
+  } catch (e) {
+    // ignore errors
+  }
+}
+
+export function clearAuthExpiryWatcher() {
+  if (_expiryTimeout) {
+    clearTimeout(_expiryTimeout)
+    _expiryTimeout = null
   }
 }
 
