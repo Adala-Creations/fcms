@@ -2,36 +2,71 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, Building2, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/layout/auth-layout'
+import { register } from '@/lib/auth'
+import { setAuthToken } from '@/lib/api-client'
 
 export default function AdminSignUp() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
-    phone: '',
-    propertyName: '',
     password: '',
     confirmPassword: '',
     agreeToTerms: false
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
+      setError('Passwords do not match')
       return
     }
-    // TODO: Implement registration logic
-    console.log('Admin sign up:', formData)
-    // Redirect to admin dashboard
-    window.location.href = '/admin/dashboard'
+
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the terms and conditions')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await register(formData.username, formData.email, formData.password, 'Admin')
+      
+        // Try different possible token property names
+        const token = response.token || response.accessToken || response.jwtToken || response.jwt || response.access_token
+      
+      if (token) {
+        // Set token in api-client
+        setAuthToken(token)
+        
+        console.log('Registration successful!')
+        
+        // Redirect to admin dashboard
+        router.push('/admin/dashboard')
+      } else {
+          console.error('Server response:', response)
+          setError(`Registration successful but no token received. Response keys: ${Object.keys(response).join(', ')}. Please login.`)
+        // Redirect to signin after a delay
+        setTimeout(() => router.push('/admin/signin'), 2000)
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err)
+      setError(err.message || 'Registration failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,49 +84,32 @@ export default function AdminSignUp() {
       role="admin"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-              First Name
-            </Label>
-            <div className="mt-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <Input
-                id="firstName"
-                name="firstName"
-                type="text"
-                autoComplete="given-name"
-                required
-                className="pl-10"
-                placeholder="John"
-                value={formData.firstName}
-                onChange={handleInputChange}
-              />
-            </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+            {error}
           </div>
+        )}
 
-          <div>
-            <Label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Last Name
-            </Label>
-            <div className="mt-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <Input
-                id="lastName"
-                name="lastName"
-                type="text"
-                autoComplete="family-name"
-                required
-                className="pl-10"
-                placeholder="Doe"
-                value={formData.lastName}
-                onChange={handleInputChange}
-              />
+        <div>
+          <Label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </Label>
+          <div className="mt-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <User className="h-5 w-5 text-gray-400" />
             </div>
+            <Input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              className="pl-10"
+              placeholder="johndoe"
+              value={formData.username}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
           </div>
         </div>
 
@@ -113,45 +131,7 @@ export default function AdminSignUp() {
               placeholder="admin@fcms.com"
               value={formData.email}
               onChange={handleInputChange}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-            Phone Number
-          </Label>
-          <div className="mt-1">
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              required
-              placeholder="+263 77 123 4567"
-              value={formData.phone}
-              onChange={handleInputChange}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="propertyName" className="block text-sm font-medium text-gray-700">
-            Property/Complex Name
-          </Label>
-          <div className="mt-1 relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Building2 className="h-5 w-5 text-gray-400" />
-            </div>
-            <Input
-              id="propertyName"
-              name="propertyName"
-              type="text"
-              required
-              className="pl-10"
-              placeholder="Sunset Gardens Complex"
-              value={formData.propertyName}
-              onChange={handleInputChange}
+              disabled={loading}
             />
           </div>
         </div>
@@ -174,6 +154,7 @@ export default function AdminSignUp() {
               placeholder="Create a strong password"
               value={formData.password}
               onChange={handleInputChange}
+              disabled={loading}
             />
             <button
               type="button"
@@ -207,6 +188,7 @@ export default function AdminSignUp() {
               placeholder="Confirm your password"
               value={formData.confirmPassword}
               onChange={handleInputChange}
+              disabled={loading}
             />
             <button
               type="button"
@@ -245,8 +227,8 @@ export default function AdminSignUp() {
         </div>
 
         <div>
-          <Button type="submit" className="w-full flex justify-center items-center">
-            Create Account
+          <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Create Account'}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

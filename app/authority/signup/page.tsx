@@ -2,18 +2,23 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, FileText, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/layout/auth-layout'
+import { register } from '@/lib/auth'
+import { setAuthToken } from '@/lib/api-client'
 
 export default function AuthoritySignUp() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
     phone: '',
     department: '',
@@ -34,14 +39,38 @@ export default function AuthoritySignUp() {
     'Other'
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
+      setError('Passwords do not match')
       return
     }
-    console.log('Authority sign up:', formData)
-    window.location.href = '/authority/dashboard'
+
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the terms and conditions')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await register(formData.username, formData.email, formData.password, 'Authority')
+      
+      const token = response.token || response.accessToken || response.jwtToken || response.jwt || response.access_token
+      
+      if (token) {
+        setAuthToken(token)
+        router.push('/authority/dashboard')
+      } else {
+        setError('No token received from server')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -59,49 +88,25 @@ export default function AuthoritySignUp() {
       role="authority"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-              First Name
-            </Label>
-            <div className="mt-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <Input
-                id="firstName"
-                name="firstName"
-                type="text"
-                autoComplete="given-name"
-                required
-                className="pl-10"
-                placeholder="Jane"
-                value={formData.firstName}
-                onChange={handleInputChange}
-              />
+        <div>
+          <Label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </Label>
+          <div className="mt-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <User className="h-5 w-5 text-gray-400" />
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Last Name
-            </Label>
-            <div className="mt-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <Input
-                id="lastName"
-                name="lastName"
-                type="text"
-                autoComplete="family-name"
-                required
-                className="pl-10"
-                placeholder="Smith"
-                value={formData.lastName}
-                onChange={handleInputChange}
-              />
-            </div>
+            <Input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              className="pl-10"
+              placeholder="authority_username"
+              value={formData.username}
+              onChange={handleInputChange}
+            />
           </div>
         </div>
 

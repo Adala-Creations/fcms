@@ -1,90 +1,135 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Search, Filter, MoreVertical, Edit, Trash2, Eye } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Filter, MoreVertical, Edit, Trash2, Eye, Shield } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
 import { formatDate, getInitials, getStatusColor } from '@/lib/utils'
+import { useApi } from '@/lib/hooks/useApi'
+import { userService, roleService, authService } from '@/lib/services/api.service'
+import type { UserDto } from '@/lib/types/api'
+import { EditUserModal, DeleteUserModal, ManageRolesModal } from '@/components/admin/UserCRUDModals'
+import { useToast } from '@/lib/hooks/useToast'
+import { ToastContainer } from '@/components/ui/toast'
 
-// Mock data
-const users = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john.doe@email.com',
-    phone: '+263 77 123 4567',
-    role: 'owner',
-    unit: 'A-12',
-    status: 'active',
-    joinDate: '2023-01-15',
-    lastLogin: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane.smith@email.com',
-    phone: '+263 77 234 5678',
-    role: 'tenant',
-    unit: 'B-05',
-    status: 'active',
-    joinDate: '2023-03-20',
-    lastLogin: '2024-01-14T15:45:00Z'
-  },
-  {
-    id: 3,
-    name: 'Bob Wilson',
-    email: 'bob.wilson@email.com',
-    phone: '+263 77 345 6789',
-    role: 'owner',
-    unit: 'C-08',
-    status: 'inactive',
-    joinDate: '2022-11-10',
-    lastLogin: '2023-12-20T09:15:00Z'
-  },
-  {
-    id: 4,
-    name: 'Alice Brown',
-    email: 'alice.brown@email.com',
-    phone: '+263 77 456 7890',
-    role: 'tenant',
-    unit: 'A-15',
-    status: 'active',
-    joinDate: '2023-06-05',
-    lastLogin: '2024-01-15T08:20:00Z'
-  },
-  {
-    id: 5,
-    name: 'Mike Johnson',
-    email: 'mike.johnson@email.com',
-    phone: '+263 77 567 8901',
-    role: 'service-provider',
-    unit: null,
-    status: 'active',
-    joinDate: '2023-02-28',
-    lastLogin: '2024-01-15T12:00:00Z'
-  }
-]
+const roleOptions = ['all', 'Admin', 'Owner', 'Tenant', 'ServiceProvider', 'Security', 'Authority']
 
-const roleOptions = ['all', 'owner', 'tenant', 'service-provider', 'security', 'admin']
-const statusOptions = ['all', 'active', 'inactive']
+interface UserWithRoles extends UserDto {
+  roles?: string[]
+}
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRoles[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null)
+  const [deletingUser, setDeletingUser] = useState<UserWithRoles | null>(null)
+  const [managingRolesUser, setManagingRolesUser] = useState<UserWithRoles | null>(null)
+  const { toasts, showToast, dismissToast } = useToast()
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm)
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter
+  // Fetch users from backend
+  const { data: users, loading, error, refetch } = useApi(
+    () => userService.getUsers(),
+    []
+  )
+
+  // Fetch roles for each user
+  useEffect(() => {
+    async function fetchUserRoles() {
+      if (!users || users.length === 0) return
+      
+      setLoadingRoles(true)
+      try {
+        const usersWithRolesData = await Promise.all(
+          users.map(async (user) => {
+            try {
+              if (user.userName) {
+                const roles = await roleService.getUserRoles(user.userName)
+                return { ...user, roles }
+              }
+            } catch (err: any) {
+              // 404 means user has no roles assigned yet - this is normal
+              if (err?.message?.includes('404')) {
+                return { ...user, roles: [] }
+              }
+              // Log other errors
+              console.error(`Failed to fetch roles for ${user.userName}`, err)
+            }
+            return { ...user, roles: [] }
+          })
+        )
+        setUsersWithRoles(usersWithRolesData)
+      } catch (err) {
+        console.error('Failed to fetch user roles', err)
+        setUsersWithRoles(users.map(u => ({ ...u, roles: [] })))
+      } finally {
+        setLoadingRoles(false)
+      }
+    }
+
+    fetchUserRoles()
+  }, [users])
+
+  // CRUD handlers
+  const handleEditUser = async (userId: string, data: Partial<UserDto>) => {
+    try {
+      await userService.updateUser(userId, data)
+      showToast('User updated successfully', 'success')
+      refetch()
+    } catch (err) {
+      showToast('Failed to update user', 'error')
+      throw err
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await userService.deleteUser(userId)
+      showToast('User deleted successfully', 'success')
+      refetch()
+    } catch (err) {
+      showToast('Failed to delete user', 'error')
+      throw err
+    }
+  }
+
+  const handleAddRole = async (username: string, roleName: string) => {
+    try {
+      await authService.addUserToRole({ username, roleName })
+      showToast(`Role ${roleName} added successfully`, 'success')
+      refetch()
+    } catch (err) {
+      showToast('Failed to add role', 'error')
+      throw err
+    }
+  }
+
+  const handleRemoveRole = async (username: string, roleName: string) => {
+    try {
+      await authService.removeUserFromRole({ username, roleName })
+      showToast(`Role ${roleName} removed successfully`, 'success')
+      refetch()
+    } catch (err) {
+      showToast('Failed to remove role', 'error')
+      throw err
+    }
+  }
+
+  const filteredUsers = usersWithRoles.filter(user => {
+    const matchesSearch = 
+      user.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phoneNumber?.includes(searchTerm)
     
-    return matchesSearch && matchesRole && matchesStatus
+    const matchesRole = roleFilter === 'all' || 
+      (user.roles && user.roles.some(r => r === roleFilter))
+    
+    return matchesSearch && matchesRole
   })
 
   return (
@@ -130,18 +175,7 @@ export default function UsersPage() {
                 >
                   {roleOptions.map(role => (
                     <option key={role} value={role}>
-                      {role === 'all' ? 'All Roles' : role.charAt(0).toUpperCase() + role.slice(1).replace('-', ' ')}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  {statusOptions.map(status => (
-                    <option key={status} value={status}>
-                      {status === 'all' ? 'All Status' : status.charAt(0).toUpperCase() + status.slice(1)}
+                      {role === 'all' ? 'All Roles' : role}
                     </option>
                   ))}
                 </select>
@@ -153,83 +187,148 @@ export default function UsersPage() {
         {/* Users Table */}
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unit
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Login
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-primary-700">
-                                {getInitials(user.name)}
-                              </span>
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Loading users...</div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-600">
+                Error loading users: {error}
+                <Button onClick={refetch} variant="outline" className="ml-4">
+                  Retry
+                </Button>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No users found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Roles
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Phone
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        2FA
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                <span className="text-sm font-medium text-primary-700">
+                                  {getInitials(user.userName || 'U')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{user.userName || 'N/A'}</div>
+                              <div className="text-xs text-gray-500">ID: {user.id || 'N/A'}</div>
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
-                            <div className="text-sm text-gray-500">{user.phone}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {loadingRoles ? (
+                              <span className="text-xs text-gray-400">Loading...</span>
+                            ) : user.roles && user.roles.length > 0 ? (
+                              user.roles.map((role, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  {role}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-gray-400">No roles</span>
+                            )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('-', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.unit || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                          {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(user.lastLogin)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-danger-600 hover:text-danger-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.lockoutEnabled && user.lockoutEnd 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {user.lockoutEnabled && user.lockoutEnd ? 'Locked Out' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{user.email || 'N/A'}</div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            user.emailConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {user.emailConfirmed ? '✓' : '?'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{user.phoneNumber || 'N/A'}</div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            user.phoneNumberConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {user.phoneNumberConfirmed ? '✓' : '?'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.twoFactorEnabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {user.twoFactorEnabled ? 'On' : 'Off'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setManagingRolesUser(user)}
+                              title="Manage Roles"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setEditingUser(user)}
+                              title="Edit User"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-danger-600 hover:text-danger-700"
+                              onClick={() => setDeletingUser(user)}
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -277,6 +376,34 @@ export default function UsersPage() {
             </div>
           </div>
         )}
+
+        {/* CRUD Modals */}
+        {editingUser && (
+          <EditUserModal
+            user={editingUser}
+            onClose={() => setEditingUser(null)}
+            onSave={handleEditUser}
+          />
+        )}
+
+        {deletingUser && (
+          <DeleteUserModal
+            user={deletingUser}
+            onClose={() => setDeletingUser(null)}
+            onConfirm={handleDeleteUser}
+          />
+        )}
+
+        {managingRolesUser && (
+          <ManageRolesModal
+            user={managingRolesUser}
+            onClose={() => setManagingRolesUser(null)}
+            onAddRole={handleAddRole}
+            onRemoveRole={handleRemoveRole}
+          />
+        )}
+
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       </div>
     </div>
   )

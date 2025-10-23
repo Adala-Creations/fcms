@@ -20,6 +20,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Key } from 'lucide-react'
 
 interface SidebarProps {
   userRole: string
@@ -29,6 +30,7 @@ const navigationItems = {
   admin: [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Roles', href: '/admin/roles', icon: Key },
     { name: 'Units', href: '/admin/units', icon: Building2 },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
     { name: 'Expenses', href: '/admin/expenses', icon: Receipt },

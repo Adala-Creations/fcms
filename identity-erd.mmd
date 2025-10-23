@@ -1,0 +1,130 @@
+erDiagram
+    %% Users & Roles
+    USER {
+        int Id PK
+        string UserName
+        string NormalizedUserName
+        string Email
+    }
+    ROLE {
+        int Id PK
+        string Name
+        string NormalizedName
+    }
+    USER ||--o{ USERROLE : assigned
+    ROLE ||--o{ USERROLE : includes
+
+    %% Properties & Units
+    PROPERTY {
+        int Id PK
+        string Name
+        datetime CreatedAt
+    }
+    UNIT {
+        int Id PK
+        int PropertyId FK
+        string Name
+        datetime CreatedAt
+    }
+    PROPERTY ||--o{ UNIT : contains
+
+    %% Owners & Tenants
+    OWNER {
+        int Id PK
+        int UserId FK
+        datetime CreatedAt
+    }
+    OWNER_UNIT {
+        int Id PK
+        int OwnerId FK
+        int UnitId FK
+    }
+    TENANT {
+        int Id PK
+        int UnitId FK
+        int UserId FK
+        datetime CreatedAt
+    }
+    UNIT ||--o{ TENANT : houses
+    OWNER ||--o{ OWNER_UNIT : owns
+    UNIT ||--o{ OWNER_UNIT : assigned_to
+
+    %% Payments
+    PAYMENT {
+        int Id PK
+        int OwnerId FK
+        int TenantId FK
+        int UnitId FK
+        datetime PaymentDate
+        decimal Amount
+    }
+    OWNER ||--o{ PAYMENT : receives
+    TENANT ||--o{ PAYMENT : makes
+    UNIT ||--o{ PAYMENT : linked
+
+    %% Expenses
+    EXPENSE {
+        int Id PK
+        int PropertyId FK
+        datetime ExpenseDate
+        decimal Amount
+    }
+    PROPERTY ||--o{ EXPENSE : incurs
+
+    %% Service Providers & Requests
+    SERVISEPROVIDER {
+        int Id PK
+        int UserId FK
+        string Name
+    }
+    SERVICE_REQUEST {
+        int Id PK
+        int UnitId FK
+        int ProviderId FK
+        int RequestedById FK
+        datetime RequestDate
+        string Status
+    }
+    UNIT ||--o{ SERVICE_REQUEST : serviced
+    SERVISEPROVIDER ||--o{ SERVICE_REQUEST : fulfills
+    USER ||--o{ SERVICE_REQUEST : requests
+
+    PROVIDER_RECEIPT {
+        int Id PK
+        int ProviderId FK
+        datetime ReceiptDate
+        decimal Amount
+    }
+    SERVISEPROVIDER ||--o{ PROVIDER_RECEIPT : issues
+
+    %% Security & Visitors
+    SECURITY_PERSONNEL {
+        int Id PK
+        int UserId FK
+        string Name
+    }
+    VISITOR {
+        int Id PK
+        int UnitId FK
+        int CreatedById FK
+        datetime CheckIn
+    }
+    UNIT ||--o{ VISITOR : visited
+    USER ||--o{ VISITOR : registers
+
+    %% Reports & Compliance
+    REPORT {
+        int Id PK
+        int GeneratedById FK
+        datetime CreatedAt
+    }
+    USER ||--o{ REPORT : generates
+
+    COMPLIANCE_RECORD {
+        int Id PK
+        int PropertyId FK
+        int AuthorityUserId FK
+        datetime ReportDate
+    }
+    PROPERTY ||--o{ COMPLIANCE_RECORD : tracked
+    USER ||--o{ COMPLIANCE_RECORD : creates

@@ -2,27 +2,56 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import AuthLayout from '@/components/layout/auth-layout'
+import { login } from '@/lib/auth'
+import { setAuthToken } from '@/lib/api-client'
 
 export default function AdminSignIn() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
     rememberMe: false
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement authentication logic
-    console.log('Admin sign in:', formData)
-    // Redirect to admin dashboard
-    window.location.href = '/admin/dashboard'
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await login(formData.username, formData.password)
+      
+        // Try different possible token property names
+        const token = response.token || response.accessToken || response.jwtToken || response.jwt || response.access_token
+      
+      if (token) {
+        // Set token in api-client
+        setAuthToken(token)
+        
+        console.log('Login successful!')
+        
+        // Redirect to admin dashboard
+        router.push('/admin/dashboard')
+      } else {
+          console.error('Server response:', response)
+          setError(`No token received from server. Response keys: ${Object.keys(response).join(', ')}`)
+      }
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err.message || 'Login failed. Please check your credentials.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,24 +69,31 @@ export default function AdminSignIn() {
       role="admin"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+            {error}
+          </div>
+        )}
+
         <div>
-          <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email Address
+          <Label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
           </Label>
           <div className="mt-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
               required
               className="pl-10"
-              placeholder="admin@fcms.com"
-              value={formData.email}
+              placeholder="Your username"
+              value={formData.username}
               onChange={handleInputChange}
+              disabled={loading}
             />
           </div>
         </div>
@@ -80,6 +116,7 @@ export default function AdminSignIn() {
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleInputChange}
+              disabled={loading}
             />
             <button
               type="button"
@@ -121,8 +158,8 @@ export default function AdminSignIn() {
         </div>
 
         <div>
-          <Button type="submit" className="w-full flex justify-center items-center">
-            Sign In
+          <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

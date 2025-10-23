@@ -2,7 +2,8 @@
  * API client utilities for FCMS
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// Use proxy to avoid CORS issues - empty string means relative URLs (/api/proxy/...)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 interface FetchOptions {
   method?: string
@@ -55,7 +56,17 @@ export default async function apiFetch<T = any>(
 ): Promise<T> {
   const { method = 'POST', headers = {}, json, body } = options
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`
+  // If API_BASE_URL is empty, use the proxy route
+  let url: string
+  if (API_BASE_URL) {
+    // Direct backend access (will have CORS issues in development)
+    url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`
+  } else {
+    // Use Next.js proxy to avoid CORS
+    // Convert /api/Units -> /api/proxy/Units
+    const proxyPath = endpoint.replace(/^\/api\//, '/api/proxy/')
+    url = proxyPath
+  }
 
   const token = getAuthToken()
   const requestHeaders: Record<string, string> = {
@@ -90,5 +101,27 @@ export default async function apiFetch<T = any>(
     throw new Error(error.message || `HTTP error! status: ${response.status}`)
   }
 
-  return response.json()
+  // Handle empty responses (like 204 No Content for DELETE)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T
+  }
+
+  // Try to parse as JSON
+  const contentType = response.headers.get('content-type')
+  if (contentType?.includes('application/json')) {
+    return response.json()
+  }
+
+  // If no content-type or empty body, return undefined
+  const text = await response.text()
+  if (!text) {
+    return undefined as T
+  }
+
+  // Try to parse text as JSON
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text as unknown as T
+  }
 }
