@@ -117,9 +117,24 @@ export async function login(username: string, password: string): Promise<LoginRe
         localStorage.setItem('userRoles', JSON.stringify(roles)) // Store all roles
       }
       
-      // Store user ID if available
-        if (data.user?.id || data.userId || data.user_id) {
-          localStorage.setItem('userId', data.user?.id || data.userId || data.user_id)
+      // Decode JWT to extract userId
+      const decoded = decodeJWT(token)
+      console.log('Decoded JWT:', decoded)
+      
+      // Try to extract userId from multiple possible JWT claim names
+      const userIdFromToken = decoded?.sub || 
+        decoded?.userId || 
+        decoded?.nameid || 
+        decoded?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+        decoded?.id
+      
+      // Store user ID - prioritize token claims over response body
+      const userId = userIdFromToken || data.user?.id || data.userId || data.user_id
+      if (userId) {
+        localStorage.setItem('userId', userId)
+        console.log('Stored userId:', userId)
+      } else {
+        console.warn('No userId found in login response or JWT token')
       }
       
       // Store username if available
@@ -192,9 +207,24 @@ export async function register(username: string, email: string, password: string
         localStorage.setItem('userRoles', JSON.stringify(roles)) // Store all roles
       }
       
-      // Store user ID if available
-        if (data.user?.id || data.userId || data.user_id) {
-          localStorage.setItem('userId', data.user?.id || data.userId || data.user_id)
+      // Decode JWT to extract userId
+      const decoded = decodeJWT(token)
+      console.log('Decoded JWT:', decoded)
+      
+      // Try to extract userId from multiple possible JWT claim names
+      const userIdFromToken = decoded?.sub || 
+        decoded?.userId || 
+        decoded?.nameid || 
+        decoded?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+        decoded?.id
+      
+      // Store user ID - prioritize token claims over response body
+      const userId = userIdFromToken || data.user?.id || data.userId || data.user_id
+      if (userId) {
+        localStorage.setItem('userId', userId)
+        console.log('Stored userId:', userId)
+      } else {
+        console.warn('No userId found in register response or JWT token')
       }
       
       // Store username if available

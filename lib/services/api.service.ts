@@ -9,7 +9,9 @@ import type {
   ServiceRequestDto,
   LoginRequest,
   RegisterRequest,
-  Role
+  Role,
+  VisitorDto,
+  ServiseProviderDto
 } from '@/lib/types/api'
 
 // Authentication
@@ -200,6 +202,26 @@ export const paymentService = {
 
   async getPaymentById(id: number): Promise<PaymentDto> {
     return apiFetch<PaymentDto>(`/api/Payments/${id}`, { method: 'GET' })
+  },
+
+  async createPayment(data: Partial<PaymentDto>): Promise<PaymentDto> {
+    const { id, ...createData } = data as PaymentDto
+    return apiFetch<PaymentDto>('/api/Payments', {
+      method: 'POST',
+      json: createData
+    })
+  },
+
+  async updatePayment(id: number, data: Partial<PaymentDto>): Promise<void> {
+    const { id: _, ...updateData } = data as PaymentDto
+    return apiFetch<void>(`/api/Payments/${id}`, {
+      method: 'PUT',
+      json: updateData
+    })
+  },
+
+  async deletePayment(id: number): Promise<void> {
+    return apiFetch<void>(`/api/Payments/${id}`, { method: 'DELETE' })
   }
 }
 
@@ -211,6 +233,26 @@ export const expenseService = {
 
   async getExpenseById(id: number): Promise<ExpenseDto> {
     return apiFetch<ExpenseDto>(`/api/Expenses/${id}`, { method: 'GET' })
+  },
+
+  async createExpense(data: Partial<ExpenseDto>): Promise<ExpenseDto> {
+    const { id, ...createData } = data as ExpenseDto
+    return apiFetch<ExpenseDto>('/api/Expenses', {
+      method: 'POST',
+      json: createData
+    })
+  },
+
+  async updateExpense(id: number, data: Partial<ExpenseDto>): Promise<void> {
+    const { id: _, ...updateData } = data as ExpenseDto
+    return apiFetch<void>(`/api/Expenses/${id}`, {
+      method: 'PUT',
+      json: updateData
+    })
+  },
+
+  async deleteExpense(id: number): Promise<void> {
+    return apiFetch<void>(`/api/Expenses/${id}`, { method: 'DELETE' })
   }
 }
 
@@ -222,6 +264,35 @@ export const serviceRequestService = {
 
   async getServiceRequestById(id: number): Promise<ServiceRequestDto> {
     return apiFetch<ServiceRequestDto>(`/api/ServiceRequests/${id}`, { method: 'GET' })
+  }
+}
+
+// Visitors
+export const visitorService = {
+  async getVisitors(): Promise<VisitorDto[]> {
+    return apiFetch<VisitorDto[]>('/api/Visitors', { method: 'GET' })
+  },
+
+  async getVisitorById(id: number): Promise<VisitorDto> {
+    return apiFetch<VisitorDto>(`/api/Visitors/${id}`, { method: 'GET' })
+  },
+
+  async createVisitor(data: Partial<VisitorDto>): Promise<VisitorDto> {
+    return apiFetch<VisitorDto>('/api/Visitors', {
+      method: 'POST',
+      json: data
+    })
+  },
+
+  async updateVisitor(id: number, data: Partial<VisitorDto>): Promise<void> {
+    return apiFetch<void>(`/api/Visitors/${id}`, {
+      method: 'PUT',
+      json: data
+    })
+  },
+
+  async deleteVisitor(id: number): Promise<void> {
+    return apiFetch<void>(`/api/Visitors/${id}`, { method: 'DELETE' })
   }
 }
 
@@ -270,5 +341,38 @@ export const dashboardService = {
       totalServiceRequests: serviceRequests.length,
       // Add more stats as needed
     }
+  }
+}
+
+// Service Providers
+export const serviceProviderService = {
+  async getProviders(): Promise<ServiseProviderDto[]> {
+    return apiFetch<ServiseProviderDto[]>('/api/ServiseProviders', { method: 'GET' })
+  },
+
+  async getProviderById(id: number): Promise<ServiseProviderDto> {
+    return apiFetch<ServiseProviderDto>(`/api/ServiseProviders/${id}`, { method: 'GET' })
+  },
+
+  async createProvider(data: Partial<ServiseProviderDto>): Promise<ServiseProviderDto> {
+    // Remove id field for creation as backend generates it
+    const { id, ...createData } = data as ServiseProviderDto
+    return apiFetch<ServiseProviderDto>('/api/ServiseProviders', {
+      method: 'POST',
+      json: createData
+    })
+  },
+
+  async updateProvider(id: number, data: Partial<ServiseProviderDto>): Promise<void> {
+    // Remove id field from update data
+    const { id: _, ...updateData } = data as ServiseProviderDto
+    return apiFetch<void>(`/api/ServiseProviders/${id}`, {
+      method: 'PUT',
+      json: updateData
+    })
+  },
+
+  async deleteProvider(id: number): Promise<void> {
+    return apiFetch<void>(`/api/ServiseProviders/${id}`, { method: 'DELETE' })
   }
 }

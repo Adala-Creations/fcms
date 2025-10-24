@@ -21,6 +21,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Header from '@/components/layout/header'
+import { useApi } from '@/lib/hooks/useApi'
+import { serviceProviderService } from '@/lib/services/api.service'
+import type { ServiseProviderDto } from '@/lib/types/api'
+import { useToast } from '@/lib/hooks/useToast'
 
 // Mock data for service providers
 const providers = [
@@ -96,46 +100,151 @@ const providers = [
   }
 ]
 
-const statusColors = {
-  active: 'bg-success-100 text-success-800',
-  inactive: 'bg-gray-100 text-gray-800',
-  suspended: 'bg-danger-100 text-danger-800'
-}
-
-const categoryColors = {
+const categoryColors: Record<string, string> = {
   Plumbing: 'bg-blue-100 text-blue-800',
   Electrical: 'bg-yellow-100 text-yellow-800',
   Cleaning: 'bg-green-100 text-green-800',
   Landscaping: 'bg-emerald-100 text-emerald-800',
   Security: 'bg-red-100 text-red-800',
-  Maintenance: 'bg-purple-100 text-purple-800'
+  Maintenance: 'bg-purple-100 text-purple-800',
+  Other: 'bg-gray-100 text-gray-800'
 }
+
+const serviceTypes = [
+  'Plumbing',
+  'Electrical',
+  'Cleaning',
+  'Landscaping',
+  'Security',
+  'Maintenance',
+  'HVAC',
+  'Painting',
+  'Carpentry',
+  'Pest Control',
+  'Other'
+]
 
 export default function AdminProviders() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<ServiseProviderDto | null>(null)
+  const [formData, setFormData] = useState({
+    companyName: '',
+    serviceType: '',
+    contactNumber: '',
+    userId: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { showToast } = useToast()
+
+  // Fetch providers from backend
+  const { data: backendProviders, loading, error, refetch } = useApi(
+    () => serviceProviderService.getProviders(),
+    []
+  )
+
+  // Use backend data if available, otherwise show empty
+  const providers = backendProviders || []
 
   const filteredProviders = providers.filter(provider => {
-    const matchesSearch = provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         provider.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         provider.phone.includes(searchTerm) ||
-                         provider.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || provider.status === filterStatus
-    const matchesCategory = filterCategory === 'all' || provider.category === filterCategory
-    return matchesSearch && matchesStatus && matchesCategory
+    const matchesSearch = provider.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         provider.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         provider.contactNumber?.includes(searchTerm)
+    const matchesCategory = filterCategory === 'all' || provider.serviceType === filterCategory
+    return matchesSearch && matchesCategory
   })
 
   const stats = {
     total: providers.length,
-    active: providers.filter(p => p.status === 'active').length,
-    inactive: providers.filter(p => p.status === 'inactive').length,
-    totalJobs: providers.reduce((sum, p) => sum + p.jobsCompleted, 0),
-    avgRating: (providers.reduce((sum, p) => sum + p.rating, 0) / providers.length).toFixed(1)
+    active: providers.length,
+    inactive: 0,
+    totalJobs: 0,
+    avgRating: 0
   }
 
-  const categories = ['Plumbing', 'Electrical', 'Cleaning', 'Landscaping', 'Security', 'Maintenance']
+  // Get unique categories from providers
+  const categories = Array.from(new Set(providers.map(p => p.serviceType).filter(Boolean) as string[]))
+
+  const handleAdd = () => {
+    setFormData({
+      companyName: '',
+      serviceType: '',
+      contactNumber: '',
+      userId: ''
+    })
+    setShowAddModal(true)
+  }
+
+  const handleEdit = (provider: ServiseProviderDto) => {
+    setSelectedProvider(provider)
+    setFormData({
+      companyName: provider.companyName || '',
+      serviceType: provider.serviceType || '',
+      contactNumber: provider.contactNumber || '',
+      userId: provider.userId || ''
+    })
+    setShowEditModal(true)
+  }
+
+  const handleDelete = (provider: ServiseProviderDto) => {
+    setSelectedProvider(provider)
+    setShowDeleteModal(true)
+  }
+
+  const handleView = (provider: ServiseProviderDto) => {
+    setSelectedProvider(provider)
+    setShowViewModal(true)
+  }
+
+  const handleSubmitAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try {
+      await serviceProviderService.createProvider(formData)
+      showToast('Provider added successfully', 'success')
+      setShowAddModal(false)
+      refetch()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to add provider', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSubmitEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedProvider) return
+    setIsSubmitting(true)
+    try {
+      await serviceProviderService.updateProvider(selectedProvider.id, formData)
+      showToast('Provider updated successfully', 'success')
+      setShowEditModal(false)
+      refetch()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to update provider', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selectedProvider) return
+    setIsSubmitting(true)
+    try {
+      await serviceProviderService.deleteProvider(selectedProvider.id)
+      showToast('Provider deleted successfully', 'success')
+      setShowDeleteModal(false)
+      refetch()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete provider', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -221,17 +330,6 @@ export default function AdminProviders() {
                   className="pl-10"
                 />
               </div>
-              
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
-              </select>
 
               <select
                 value={filterCategory}
@@ -253,77 +351,270 @@ export default function AdminProviders() {
         </CardContent>
       </Card>
 
-      {/* Providers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProviders.map((provider) => (
-          <Card key={provider.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{provider.name}</CardTitle>
-                  <CardDescription className="flex items-center mt-1">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mr-2 ${categoryColors[provider.category as keyof typeof categoryColors]}`}>
-                      {provider.category}
-                    </span>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusColors[provider.status as keyof typeof statusColors]}`}>
-                      {provider.status}
-                    </span>
-                  </CardDescription>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Star className="h-4 w-4 text-warning-500 fill-current" />
-                  <span className="text-sm font-medium">{provider.rating}</span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="h-4 w-4 mr-2" />
-                  {provider.phone}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {provider.email}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {provider.address}
-                </div>
-                
-                <div className="pt-2 border-t">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Specialties:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {provider.specialties.map((specialty, index) => (
-                      <span key={index} className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="text-gray-500">Loading providers...</div>
+        </div>
+      )}
 
-                <div className="pt-2 border-t flex justify-between items-center">
-                  <div className="text-sm text-gray-600">
-                    <p>{provider.jobsCompleted} jobs completed</p>
-                    <p>Last job: {new Date(provider.lastJob).toLocaleDateString()}</p>
-                  </div>
-                  <div className="flex space-x-1">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+      {/* Error State */}
+      {error && (
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-lg p-8 shadow-sm">
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className="flex items-center space-x-2">
+              <svg className="h-8 w-8 text-yellow-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <h2 className="text-2xl font-bold text-yellow-800">🚧 Under Construction 🚧</h2>
+            </div>
+            <p className="text-lg text-yellow-700 font-medium">
+              This feature is currently being built
+            </p>
+            <p className="text-sm text-yellow-600 max-w-md">
+              The Service Providers system will be available soon. Thank you for your patience!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Providers Grid */}
+      {!loading && !error && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredProviders.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-gray-500">
+            No service providers found
+          </div>
+        ) : (
+          filteredProviders.map((provider) => (
+            <Card key={provider.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg">{provider.companyName || 'N/A'}</CardTitle>
+                    <CardDescription className="flex items-center mt-1">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${categoryColors[provider.serviceType as keyof typeof categoryColors] || categoryColors.Other}`}>
+                        {provider.serviceType || 'Other'}
+                      </span>
+                    </CardDescription>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Phone className="h-4 w-4 mr-2" />
+                    {provider.contactNumber || 'N/A'}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Mail className="h-4 w-4 mr-2" />
+                    {provider.userId || 'N/A'}
+                  </div>
+                  
+                  <div className="pt-2 border-t">
+                    <p className="text-sm font-medium text-gray-900 mb-1">Provider ID:</p>
+                    <p className="text-xs text-gray-600">{provider.id}</p>
+                  </div>
+
+                  <div className="pt-2 border-t flex justify-end items-center">
+                    <div className="flex space-x-1">
+                      <Button variant="outline" size="sm" onClick={() => handleView(provider)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(provider)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(provider)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+      )}
+
+      {/* Add Provider Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Add New Provider</h3>
+            <form onSubmit={handleSubmitAdd} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
+                <Input
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  required
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Service Type *</label>
+                <select
+                  value={formData.serviceType}
+                  onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select service type</option>
+                  {serviceTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
+                <Input
+                  value={formData.contactNumber}
+                  onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  required
+                  placeholder="Enter contact number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+                <Input
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  placeholder="Enter user ID (optional)"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Adding...' : 'Add Provider'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Provider Modal */}
+      {showEditModal && selectedProvider && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Edit Provider</h3>
+            <form onSubmit={handleSubmitEdit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
+                <Input
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  required
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Service Type *</label>
+                <select
+                  value={formData.serviceType}
+                  onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select service type</option>
+                  {serviceTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
+                <Input
+                  value={formData.contactNumber}
+                  onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                  required
+                  placeholder="Enter contact number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+                <Input
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  placeholder="Enter user ID (optional)"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Updating...' : 'Update Provider'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedProvider && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-red-600">Delete Provider</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <strong>{selectedProvider.companyName}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setShowDeleteModal(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleConfirmDelete}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Provider Modal */}
+      {showViewModal && selectedProvider && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Provider Details</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Company Name</p>
+                <p className="text-base text-gray-900">{selectedProvider.companyName || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Service Type</p>
+                <p className="text-base text-gray-900">{selectedProvider.serviceType || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Contact Number</p>
+                <p className="text-base text-gray-900">{selectedProvider.contactNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">User ID</p>
+                <p className="text-base text-gray-900">{selectedProvider.userId || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Provider ID</p>
+                <p className="text-base text-gray-900">{selectedProvider.id}</p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <Button onClick={() => setShowViewModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -20,13 +20,23 @@ export default function AdminSignIn() {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
+    secretCode: '',
     rememberMe: false
   })
+
+  const SECRET_CODE = '$3cR3Tc0DE_Adin1StrAt10N'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    // Validate secret code first
+    if (formData.secretCode.trim() !== SECRET_CODE) {
+      setError('Invalid secret code. Please contact your administrator for access.')
+      setLoading(false)
+      return
+    }
 
     try {
       const response = await login(formData.username, formData.password)
@@ -92,6 +102,28 @@ export default function AdminSignIn() {
               className="pl-10"
               placeholder="Your username"
               value={formData.username}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="secretCode" className="block text-sm font-medium text-gray-700">
+            Secret Code
+          </Label>
+          <div className="mt-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              id="secretCode"
+              name="secretCode"
+              type="password"
+              required
+              className="pl-10"
+              placeholder="Enter your secret code"
+              value={formData.secretCode}
               onChange={handleInputChange}
               disabled={loading}
             />
@@ -168,10 +200,10 @@ export default function AdminSignIn() {
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
             <Link
-              href="/admin/signup"
+              href="/admin/account_request"
               className="font-medium text-primary-600 hover:text-primary-500"
             >
-              Sign up here
+              Request access here
             </Link>
           </p>
         </div>

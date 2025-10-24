@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   FileText, 
   Download, 
@@ -18,68 +18,176 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import Header from '@/components/layout/header'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-
-// Mock data for charts
-const monthlyRevenue = [
-  { month: 'Jan', revenue: 12000, expenses: 8000 },
-  { month: 'Feb', revenue: 15000, expenses: 9000 },
-  { month: 'Mar', revenue: 18000, expenses: 10000 },
-  { month: 'Apr', revenue: 16000, expenses: 8500 },
-  { month: 'May', revenue: 20000, expenses: 12000 },
-  { month: 'Jun', revenue: 22000, expenses: 11000 },
-]
-
-const paymentStatusData = [
-  { name: 'Paid', value: 85, color: '#10B981' },
-  { name: 'Pending', value: 10, color: '#F59E0B' },
-  { name: 'Overdue', value: 5, color: '#EF4444' },
-]
-
-const expenseCategories = [
-  { category: 'Maintenance', amount: 4500, percentage: 35 },
-  { category: 'Utilities', amount: 3200, percentage: 25 },
-  { category: 'Security', amount: 2800, percentage: 22 },
-  { category: 'Cleaning', amount: 1800, percentage: 14 },
-  { category: 'Other', amount: 500, percentage: 4 },
-]
-
-const topDefaulters = [
-  { name: 'Alice Brown', unit: 'A-15', amount: 450, daysOverdue: 15 },
-  { name: 'Charlie Davis', unit: 'B-12', amount: 300, daysOverdue: 8 },
-  { name: 'Diana Prince', unit: 'C-03', amount: 200, daysOverdue: 5 },
-  { name: 'Eve Wilson', unit: 'A-08', amount: 150, daysOverdue: 3 },
-]
-
-const visitorStats = [
-  { day: 'Mon', visitors: 12 },
-  { day: 'Tue', visitors: 8 },
-  { day: 'Wed', visitors: 15 },
-  { day: 'Thu', visitors: 10 },
-  { day: 'Fri', visitors: 18 },
-  { day: 'Sat', visitors: 25 },
-  { day: 'Sun', visitors: 20 },
-]
+import { useApi } from '@/lib/hooks/useApi'
+import { paymentService, expenseService, unitService, visitorService } from '@/lib/services/api.service'
+import type { PaymentDto, ExpenseDto, UnitDto, VisitorDto } from '@/lib/types/api'
 
 export default function AdminReports() {
   const [selectedPeriod, setSelectedPeriod] = useState('month')
   const [selectedReport, setSelectedReport] = useState('financial')
+  const [monthlyRevenue, setMonthlyRevenue] = useState<any[]>([])
+  const [paymentStatusData, setPaymentStatusData] = useState<any[]>([])
+  const [expenseCategories, setExpenseCategories] = useState<any[]>([])
+  const [visitorStats, setVisitorStats] = useState<any[]>([])
+  
+  const { data: payments, loading: paymentsLoading, error: paymentsError } = useApi<PaymentDto[]>(
+    () => paymentService.getPayments()
+  )
+  const { data: expenses, loading: expensesLoading, error: expensesError } = useApi<ExpenseDto[]>(
+    () => expenseService.getExpenses()
+  )
+  const { data: units, loading: unitsLoading, error: unitsError } = useApi<UnitDto[]>(
+    () => unitService.getUnits()
+  )
+  const { data: visitors, loading: visitorsLoading, error: visitorsError } = useApi<VisitorDto[]>(
+    () => visitorService.getVisitors()
+  )
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   
+  // Calculate stats from real data
   const stats = {
-    totalRevenue: 22000,
-    totalExpenses: 11000,
-    netIncome: 11000,
-    occupancyRate: 85,
-    totalUnits: 48,
-    occupiedUnits: 41,
-    averageRent: 180,
-    collectionRate: 92
+    totalRevenue: payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0,
+    totalExpenses: expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+    netIncome: (payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0) - (expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0),
+    totalUnits: units?.length || 0,
+    occupiedUnits: units?.filter(u => u.isOccupied).length || 0,
+    occupancyRate: units?.length ? Math.round((units.filter(u => u.isOccupied).length / units.length) * 100) : 0,
+    averageRent: payments?.length ? Math.round((payments.reduce((sum, p) => sum + (p.amount || 0), 0) / payments.length)) : 0,
+    collectionRate: payments?.length || 0
   }
+
+  // Process data for charts
+  useEffect(() => {
+    if (payments && expenses) {
+      // Monthly revenue and expenses grouped by month
+      const monthlyData: Record<string, { revenue: number; expenses: number }> = {}
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      
+      payments.forEach(payment => {
+        if (payment.paymentDate) {
+          const month = monthNames[new Date(payment.paymentDate).getMonth()]
+          if (!monthlyData[month]) monthlyData[month] = { revenue: 0, expenses: 0 }
+          monthlyData[month].revenue += payment.amount || 0
+        }
+      })
+      
+      expenses.forEach(expense => {
+        if (expense.expenseDate) {
+          const month = monthNames[new Date(expense.expenseDate).getMonth()]
+          if (!monthlyData[month]) monthlyData[month] = { revenue: 0, expenses: 0 }
+          monthlyData[month].expenses += expense.amount || 0
+        }
+      })
+      
+      setMonthlyRevenue(
+        Object.entries(monthlyData).map(([month, data]) => ({
+          month,
+          revenue: data.revenue,
+          expenses: data.expenses
+        }))
+      )
+
+      // Payment method distribution
+      const methodCounts: Record<string, number> = {}
+      payments.forEach(p => {
+        const method = p.method || 'Unknown'
+        methodCounts[method] = (methodCounts[method] || 0) + 1
+      })
+      
+      setPaymentStatusData(
+        Object.entries(methodCounts).map(([name, value]) => ({
+          name,
+          value,
+          color: name === 'EcoCash' ? '#10B981' : name === 'Bank Transfer' ? '#F59E0B' : '#3B82F6'
+        }))
+      )
+
+      // Expense categories
+      const categoryTotals: Record<string, number> = {}
+      expenses.forEach(e => {
+        const category = e.category || 'Other'
+        categoryTotals[category] = (categoryTotals[category] || 0) + (e.amount || 0)
+      })
+      
+      const total = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0)
+      setExpenseCategories(
+        Object.entries(categoryTotals).map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: total > 0 ? Math.round((amount / total) * 100) : 0
+        }))
+      )
+    }
+
+    // Visitor stats by day of week
+    if (visitors) {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      const dayCounts: Record<string, number> = {}
+      
+      visitors.forEach(v => {
+        if (v.checkIn) {
+          const day = dayNames[new Date(v.checkIn).getDay()]
+          dayCounts[day] = (dayCounts[day] || 0) + 1
+        }
+      })
+      
+      setVisitorStats(
+        dayNames.map(day => ({
+          day,
+          visitors: dayCounts[day] || 0
+        }))
+      )
+    }
+  }, [payments, expenses, visitors])
+
+  const loading = paymentsLoading || expensesLoading || unitsLoading || visitorsLoading
+  const error = paymentsError || expensesError || unitsError || visitorsError
 
   const handleDownload = (reportType: string) => {
     // In a real app, this would generate and download the report
     console.log(`Downloading ${reportType} report...`)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Header 
+          title="Reports & Analytics" 
+          subtitle="Comprehensive reports and analytics for property management"
+        />
+        <Card>
+          <CardContent className="p-12 text-center">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              <p className="text-gray-600">Loading reports data...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Header 
+          title="Reports & Analytics" 
+          subtitle="Comprehensive reports and analytics for property management"
+        />
+        <Card>
+          <CardContent className="p-12">
+            <div className="text-center space-y-4">
+              <div className="bg-warning-50 border-2 border-warning-200 rounded-lg p-8">
+                <h3 className="text-2xl font-bold text-warning-800 mb-2">🚧 Under Construction 🚧</h3>
+                <p className="text-warning-700 mb-4">Reports data is currently being populated</p>
+                <p className="text-sm text-warning-600">Some backend endpoints may not be available yet</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -204,11 +312,11 @@ export default function AdminReports() {
           </CardContent>
         </Card>
 
-        {/* Payment Status Pie Chart */}
+        {/* Payment Method Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Payment Status Distribution</CardTitle>
-            <CardDescription>Current payment status overview</CardDescription>
+            <CardTitle>Payment Method Distribution</CardTitle>
+            <CardDescription>Breakdown by payment method</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -259,26 +367,36 @@ export default function AdminReports() {
           </CardContent>
         </Card>
 
-        {/* Top Defaulters */}
+        {/* Recent Payments */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Defaulters</CardTitle>
-            <CardDescription>Residents with outstanding payments</CardDescription>
+            <CardTitle>Recent Payments</CardTitle>
+            <CardDescription>Latest payment transactions</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topDefaulters.map((defaulter, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{defaulter.name}</p>
-                    <p className="text-xs text-gray-500">Unit {defaulter.unit}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-red-600">${defaulter.amount}</p>
-                    <p className="text-xs text-gray-500">{defaulter.daysOverdue} days overdue</p>
-                  </div>
-                </div>
-              ))}
+              {payments && payments
+                .slice(0, 4)
+                .map((payment, index) => {
+                  const daysAgo = payment.paymentDate 
+                    ? Math.floor((new Date().getTime() - new Date(payment.paymentDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : 0
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Payment #{payment.id}</p>
+                        <p className="text-xs text-gray-500">Unit: {payment.unitId} | Method: {payment.method || 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-blue-600">${payment.amount || 0}</p>
+                        <p className="text-xs text-gray-500">{daysAgo > 0 ? `${daysAgo} days ago` : 'Today'}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              {(!payments || payments.length === 0) && (
+                <p className="text-sm text-gray-500 text-center py-4">No payments found</p>
+              )}
             </div>
           </CardContent>
         </Card>

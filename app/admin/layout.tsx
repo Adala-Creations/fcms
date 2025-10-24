@@ -9,7 +9,7 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const isAuthPage = pathname?.includes('/signin') || pathname?.includes('/signup') || pathname?.includes('/forgot-password')
+  const isAuthPage = pathname?.includes('/signin') || pathname?.includes('/signup') || pathname?.includes('/forgot-password') || pathname?.includes('/account_request')
 
   if (isAuthPage) {
     return (

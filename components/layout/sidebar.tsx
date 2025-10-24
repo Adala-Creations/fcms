@@ -31,14 +31,13 @@ const navigationItems = {
   admin: [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Roles', href: '/admin/roles', icon: Key },
+    { name: 'Roles', href: '/admin/roles', icon: Key, disabled: true },
     { name: 'Units', href: '/admin/units', icon: Building2 },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
     { name: 'Expenses', href: '/admin/expenses', icon: Receipt },
     { name: 'Visitors', href: '/admin/visitors', icon: Shield },
     { name: 'Service Providers', href: '/admin/providers', icon: Wrench },
     { name: 'Reports', href: '/admin/reports', icon: FileText },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
   ],
   owner: [
     { name: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
@@ -148,6 +147,19 @@ export default function Sidebar({ userRole }: SidebarProps) {
             {items.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
+              const isDisabled = (item as any).disabled
+              
+              if (isDisabled) {
+                return (
+                  <div
+                    key={item.name}
+                    className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-400 cursor-not-allowed opacity-50"
+                  >
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </div>
+                )
+              }
               
               return (
                 <Link
@@ -205,15 +217,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
                     onClick={() => setIsProfileOpen(false)}
                   >
                     <User className="mr-3 h-4 w-4" />
-                    Profile Settings
-                  </Link>
-                  <Link
-                    href={`/${userRole}/settings`}
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsProfileOpen(false)}
-                  >
-                    <Settings className="mr-3 h-4 w-4" />
-                    Account Settings
+                    Profile & Settings
                   </Link>
                   <div className="border-t border-gray-100 my-1"></div>
                   <button

@@ -7,68 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Header from '@/components/layout/header'
 import { formatDate, formatDateTime, getStatusColor } from '@/lib/utils'
+import { useApi } from '@/lib/hooks/useApi'
+import { visitorService } from '@/lib/services/api.service'
+import type { VisitorDto } from '@/lib/types/api'
 
-// Mock data
-const visitors = [
-  {
-    id: 1,
-    visitorName: 'Mike Johnson',
-    residentName: 'John Doe',
-    unit: 'A-12',
-    code: 'QR-001-2024',
-    status: 'active',
-    issuedBy: 'John Doe',
-    scannedBy: 'Security Guard 1',
-    timeIn: '2024-01-15T10:30:00Z',
-    timeOut: null,
-    purpose: 'Social visit',
-    phone: '+263 77 123 4567'
-  },
-  {
-    id: 2,
-    visitorName: 'Sarah Wilson',
-    residentName: 'Jane Smith',
-    unit: 'B-05',
-    code: 'QR-002-2024',
-    status: 'completed',
-    issuedBy: 'Jane Smith',
-    scannedBy: 'Security Guard 2',
-    timeIn: '2024-01-14T15:45:00Z',
-    timeOut: '2024-01-14T18:30:00Z',
-    purpose: 'Delivery',
-    phone: '+263 77 234 5678'
-  },
-  {
-    id: 3,
-    visitorName: 'David Brown',
-    residentName: 'Bob Wilson',
-    unit: 'C-08',
-    code: 'QR-003-2024',
-    status: 'expired',
-    issuedBy: 'Bob Wilson',
-    scannedBy: null,
-    timeIn: null,
-    timeOut: null,
-    purpose: 'Maintenance',
-    phone: '+263 77 345 6789'
-  },
-  {
-    id: 4,
-    visitorName: 'Lisa Davis',
-    residentName: 'Alice Brown',
-    unit: 'A-15',
-    code: 'QR-004-2024',
-    status: 'active',
-    issuedBy: 'Alice Brown',
-    scannedBy: 'Security Guard 1',
-    timeIn: '2024-01-15T14:20:00Z',
-    timeOut: null,
-    purpose: 'Family visit',
-    phone: '+263 77 456 7890'
-  }
-]
-
-const statusOptions = ['all', 'active', 'completed', 'expired']
 const purposeOptions = ['all', 'Social visit', 'Delivery', 'Maintenance', 'Family visit', 'Business']
 
 export default function VisitorsPage() {
@@ -76,26 +18,45 @@ export default function VisitorsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [purposeFilter, setPurposeFilter] = useState('all')
   const [showQRModal, setShowQRModal] = useState(false)
-  const [selectedVisitor, setSelectedVisitor] = useState(null)
+  const [selectedVisitor, setSelectedVisitor] = useState<VisitorDto | null>(null)
 
-  const filteredVisitors = visitors.filter(visitor => {
-    const matchesSearch = visitor.visitorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visitor.residentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visitor.unit.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visitor.code.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || visitor.status === statusFilter
-    const matchesPurpose = purposeFilter === 'all' || visitor.purpose === purposeFilter
+  // Fetch visitors from backend
+  const { data: visitors, loading, error, refetch } = useApi(
+    () => visitorService.getVisitors(),
+    []
+  )
+
+  // Helper function to determine visitor status
+  const getVisitorStatus = (visitor: VisitorDto) => {
+    if (visitor.checkOut) return 'completed'
+    if (visitor.checkIn) return 'active'
+    return 'pending'
+  }
+
+  const filteredVisitors = (visitors || []).filter(visitor => {
+    const matchesSearch = visitor.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         visitor.contactNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         visitor.visitReason?.toLowerCase().includes(searchTerm.toLowerCase())
+    const status = getVisitorStatus(visitor)
+    const matchesStatus = statusFilter === 'all' || status === statusFilter
+    const matchesPurpose = purposeFilter === 'all' || visitor.visitReason === purposeFilter
     
     return matchesSearch && matchesStatus && matchesPurpose
   })
 
-  const activeVisitors = visitors.filter(v => v.status === 'active').length
-  const completedToday = visitors.filter(v => 
-    v.status === 'completed' && 
-    v.timeOut && new Date(v.timeOut).toDateString() === new Date().toDateString()
+  const activeVisitors = (visitors || []).filter(v => v.checkIn && !v.checkOut).length
+  const completedToday = (visitors || []).filter(v => 
+    v.checkOut && new Date(v.checkOut).toDateString() === new Date().toDateString()
   ).length
 
-  const handleGenerateQR = (visitor: any) => {
+  const statusOptions = [
+    { value: 'all', label: 'All Status' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'active', label: 'Active' },
+    { value: 'completed', label: 'Completed' }
+  ]
+
+  const handleGenerateQR = (visitor: VisitorDto) => {
     setSelectedVisitor(visitor)
     setShowQRModal(true)
   }
@@ -138,7 +99,7 @@ export default function VisitorsPage() {
               <QrCode className="h-4 w-4 text-warning-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-warning-600">{visitors.length}</div>
+              <div className="text-2xl font-bold text-warning-600">{visitors?.length || 0}</div>
               <p className="text-xs text-muted-foreground">Visitor codes generated</p>
             </CardContent>
           </Card>
@@ -176,9 +137,9 @@ export default function VisitorsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'all' ? 'All Status' : status.charAt(0).toUpperCase() + status.slice(1)}
+                {statusOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -197,92 +158,126 @@ export default function VisitorsPage() {
           </CardContent>
         </Card>
 
-        {/* Visitors Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Visitor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Resident
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Purpose
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time In
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time Out
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredVisitors.map((visitor) => (
-                    <tr key={visitor.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{visitor.visitorName}</div>
-                          <div className="text-sm text-gray-500">{visitor.phone}</div>
-                          <div className="text-xs text-gray-400">{visitor.code}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{visitor.residentName}</div>
-                          <div className="text-sm text-gray-500">Unit {visitor.unit}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {visitor.purpose}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(visitor.status)}`}>
-                          {visitor.status.charAt(0).toUpperCase() + visitor.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {visitor.timeIn ? formatDateTime(visitor.timeIn) : 'Not scanned'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {visitor.timeOut ? formatDateTime(visitor.timeOut) : 'Still active'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleGenerateQR(visitor)}
-                          >
-                            <QrCode className="h-4 w-4" />
-                          </Button>
-                          {visitor.status === 'active' && (
-                            <Button variant="ghost" size="sm" className="text-danger-600 hover:text-danger-700">
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="text-gray-500">Loading visitors...</div>
+          </div>
+        )}
 
-        {/* QR Code Modal */}
-        {showQRModal && (
+        {/* Error State */}
+        {error && (
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-lg p-8 shadow-sm">
+            <div className="flex flex-col items-center justify-center text-center space-y-4">
+              <div className="flex items-center space-x-2">
+                <svg className="h-8 w-8 text-yellow-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <h2 className="text-2xl font-bold text-yellow-800">🚧 Under Construction 🚧</h2>
+              </div>
+              <p className="text-lg text-yellow-700 font-medium">
+                This feature is currently being built
+              </p>
+              <p className="text-sm text-yellow-600 max-w-md">
+                The Visitor Management system will be available soon. Thank you for your patience!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Visitors Table */}
+        {!loading && !error && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Visitor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Resident / Unit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Purpose
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time In
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time Out
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredVisitors.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                          No visitors found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVisitors.map((visitor) => (
+                        <tr key={visitor.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{visitor.name}</div>
+                            <div className="text-sm text-gray-500">{visitor.contactNumber}</div>
+                            <div className="text-xs text-gray-400">ID: {visitor.id}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{visitor.createdBy || 'N/A'}</div>
+                            <div className="text-sm text-gray-500">Unit {visitor.unitId || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {visitor.visitReason || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(getVisitorStatus(visitor))}`}>
+                              {getVisitorStatus(visitor).charAt(0).toUpperCase() + getVisitorStatus(visitor).slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {visitor.checkIn ? formatDateTime(visitor.checkIn) : 'Not checked in'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {visitor.checkOut ? formatDateTime(visitor.checkOut) : 'Still active'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleGenerateQR(visitor)}
+                              >
+                                <QrCode className="h-4 w-4" />
+                              </Button>
+                              {getVisitorStatus(visitor) === 'active' && (
+                                <Button variant="ghost" size="sm" className="text-danger-600 hover:text-danger-700">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* QR Code Modal */}
+      {showQRModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
               <h3 className="text-lg font-semibold mb-4">Generate Visitor QR Code</h3>
@@ -326,7 +321,6 @@ export default function VisitorsPage() {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }
