@@ -75,7 +75,7 @@ export default function UsersPage() {
               })
             } catch (err) {
               // if the role has no users or the backend returns 404 we ignore
-              if (err?.message && err.message.includes('404')) return
+              // if (err?.message && err.message.includes('404')) return
               console.error(`error querying users for role ${role}`, err)
             }
           })
