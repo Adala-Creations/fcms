@@ -20,7 +20,6 @@ export default function AdminSignIn() {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    secretCode: '',
     rememberMe: false
   })
 
@@ -31,12 +30,6 @@ export default function AdminSignIn() {
     setLoading(true)
     setError(null)
 
-    // Validate secret code first
-    if (formData.secretCode.trim() !== SECRET_CODE) {
-      setError('Invalid secret code. Please contact your administrator for access.')
-      setLoading(false)
-      return
-    }
 
     try {
       const response = await login(formData.username, formData.password)
@@ -56,7 +49,7 @@ export default function AdminSignIn() {
           // Wait a moment before showing error in case token arrives slightly delayed
           await new Promise(resolve => setTimeout(resolve, 500))
           console.error('Server response:', response)
-          setError(`No token received from server. Response keys: ${Object.keys(response).join(', ')}`)
+          setError(`Response keys: ${Object.keys(response).join(', ')}`)
       }
     } catch (err: any) {
       console.error('Login error:', err)
@@ -110,27 +103,6 @@ export default function AdminSignIn() {
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="secretCode" className="block text-sm font-medium text-gray-700">
-            Secret Code
-          </Label>
-          <div className="mt-1 relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-gray-400" />
-            </div>
-            <Input
-              id="secretCode"
-              name="secretCode"
-              type="password"
-              required
-              className="pl-10"
-              placeholder="Enter your secret code"
-              value={formData.secretCode}
-              onChange={handleInputChange}
-              disabled={loading}
-            />
-          </div>
-        </div>
 
         <div>
           <Label htmlFor="password" className="block text-sm font-medium text-gray-700">

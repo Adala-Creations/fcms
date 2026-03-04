@@ -32,7 +32,7 @@ const navigationItems = {
   admin: [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Roles', href: '/admin/roles', icon: Key, disabled: true },
+    { name: 'Roles', href: '/admin/roles', icon: Key },
     { name: 'Properties', href: '/admin/properties', icon: Building },
     { name: 'Units', href: '/admin/units', icon: Building2 },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },

@@ -54,8 +54,25 @@ export const authService = {
 
 // Roles
 export const roleService = {
+  /**
+   * The backend now exposes the canonical list via the authentication
+   * route.  GET /api/Roles was flaky/empty in the previous implementation
+   * so we fetch from the new list-roles endpoint which returns objects
+   * with at least `id` and `name`.
+   */
   async getRoles(): Promise<Role[]> {
-    return apiFetch<Role[]>('/api/Roles', { method: 'GET' })
+    // map the simplified auth payload to the Role interface to keep the
+    // rest of the app unchanged
+    const raw = await apiFetch<{ id: string | null; name: string | null }[]>(
+      '/api/Authentication/list-roles',
+      { method: 'GET' }
+    )
+    return raw.map(r => ({
+      id: r.id,
+      name: r.name,
+      normalizedName: r.name ? r.name.toUpperCase() : null,
+      concurrencyStamp: null
+    }))
   },
 
   async createRole(role: Role): Promise<Role> {
@@ -74,8 +91,15 @@ export const roleService = {
     return apiFetch<void>(`/api/Roles/${id}`, { method: 'DELETE' })
   },
 
-  async getUserRoles(username: string): Promise<string[]> {
-    return apiFetch<string[]>(`/api/Authentication/user-roles/${username}`, { method: 'GET' })
+  /**
+   * Fetch users assigned to a particular role.  Used by user management
+   * screens to build a reverse index of roles per user.
+   */
+  async getUsersInRole(roleName: string): Promise<UserDto[]> {
+    return apiFetch<UserDto[]>(
+      `/api/Authentication/list-users-in-role/${encodeURIComponent(roleName)}`,
+      { method: 'GET' }
+    )
   }
 }
 

@@ -52,12 +52,18 @@ function extractRolesFromToken(token: string): string[] {
   const decoded = decodeJWT(token)
   if (!decoded) return []
 
-  // Check common role claim names in JWT
+  // Check common role claim names in JWT (try multiple variations)
   const roleClaim = 
     decoded.role || 
     decoded.roles || 
+    decoded.userRole ||
+    decoded.userRoles ||
     decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
-    decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role']
+    decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'] ||
+    decoded['http://schemas.microsoft.com/identity/claims/role'] ||
+    decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
+    decoded.realm_access?.roles ||
+    decoded.resource_access?.roles
 
   console.log('JWT decoded payload:', decoded)
   console.log('Role claim found:', roleClaim)
@@ -137,9 +143,21 @@ export async function login(username: string, password: string): Promise<LoginRe
         console.warn('No userId found in login response or JWT token')
       }
       
-      // Store username if available
-      if (data.user?.userName || data.username) {
-        localStorage.setItem('userName', data.user?.userName || data.username)
+      // Store username - try response first, then JWT claims, then fall back to input parameter
+      const storedUsername = 
+        data.user?.userName || 
+        data.username || 
+        decoded?.unique_name || 
+        decoded?.preferred_username || 
+        decoded?.sub ||
+        decoded?.name ||
+        username  // Fall back to the username parameter passed in
+      
+      if (storedUsername) {
+        localStorage.setItem('userName', storedUsername)
+        console.log('Stored userName:', storedUsername)
+      } else {
+        console.warn('No userName found in login response or JWT token')
       }
     }
   }

@@ -15,6 +15,13 @@ All TypeScript interfaces now match your exact backend DTOs:
 - Now uses `/api/Authentication/register` endpoint  
 - Changed to use `username` instead of `email` for login
 
+### 3. Roles & Authorization APIs
+- New `GET /api/Authentication/list-roles` returns current role names
+- `POST /api/Authentication/add-to-role` & `remove-from-role` accept `{ username, roleName }`
+- `GET /api/Authentication/list-users-in-role/:roleName` returns users for a given role
+- CRUD for role objects remain under `/api/Roles` (GET/POST/PUT/DELETE)
+
+
 ### 3. API Client (`lib/api-client.ts`)
 - Already configured correctly
 - Uses Bearer token authentication

@@ -5,7 +5,9 @@ import { Label } from '@/components/ui/label'
 import { X, Shield } from 'lucide-react'
 import type { UserDto } from '@/lib/types/api'
 
-const roleOptions = ['Admin', 'Owner', 'Tenant', 'ServiceProvider', 'Security', 'Authority']
+// role list is now supplied from the parent so that it matches whatever the
+// backend reports rather than being hard-coded.
+// (we keep this file free of network calls to make it reusable)
 
 interface EditUserModalProps {
   user: UserDto
@@ -183,12 +185,14 @@ export function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalPro
 
 interface ManageRolesModalProps {
   user: UserDto & { roles?: string[] }
+  /** list of all possible role names (including 'all' if you want it) */
+  allRoles: string[]
   onClose: () => void
   onAddRole: (username: string, role: string) => Promise<void>
   onRemoveRole: (username: string, role: string) => Promise<void>
 }
 
-export function ManageRolesModal({ user, onClose, onAddRole, onRemoveRole }: ManageRolesModalProps) {
+export function ManageRolesModal({ user, allRoles, onClose, onAddRole, onRemoveRole }: ManageRolesModalProps) {
   const [selectedRole, setSelectedRole] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -227,7 +231,8 @@ export function ManageRolesModal({ user, onClose, onAddRole, onRemoveRole }: Man
     }
   }
 
-  const availableRoles = roleOptions.filter(role => !user.roles?.includes(role))
+  // filter out whatever roles the user already has
+  const availableRoles = allRoles.filter(role => !user.roles?.includes(role))
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

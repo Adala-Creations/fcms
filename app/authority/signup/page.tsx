@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/layout/auth-layout'
 import { register } from '@/lib/auth'
 import { setAuthToken } from '@/lib/api-client'
+import { authService } from '@/lib/services/api.service'
 
 export default function AuthoritySignUp() {
   const router = useRouter()
@@ -26,7 +27,7 @@ export default function AuthoritySignUp() {
     authorityId: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false
+    agreeToTerms: true
   })
 
   const departments = [
@@ -62,11 +63,19 @@ export default function AuthoritySignUp() {
       
       if (token) {
         setAuthToken(token)
+        
+        // Post-registration hook: Auto-assign Authority role
+        try {
+          await authService.addUserToRole({ username: formData.username, roleName: 'Authority' })
+        } catch (roleErr: any) {
+          console.warn('Role assignment warning:', roleErr.message)
+        }
+        
         router.push('/authority/dashboard')
       } else {
         // Wait a moment before showing error in case token arrives slightly delayed
         await new Promise(resolve => setTimeout(resolve, 500))
-        setError('No token received from server')
+        setError('Go to login')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -290,7 +299,7 @@ export default function AuthoritySignUp() {
           </div>
         </div>
 
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <input
             id="agreeToTerms"
             name="agreeToTerms"
@@ -310,7 +319,7 @@ export default function AuthoritySignUp() {
               Privacy Policy
             </Link>
           </Label>
-        </div>
+        </div> */}
 
         <div>
           <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>

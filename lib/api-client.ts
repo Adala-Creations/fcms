@@ -37,6 +37,12 @@ export function getAuthToken(): string | null {
   return authToken
 }
 
+function maskToken(t: string | null | undefined) {
+  if (!t) return null
+  if (t.length <= 8) return '****'
+  return `${t.slice(0,4)}....${t.slice(-4)}`
+}
+
 /**
  * Clear authentication token
  */
@@ -75,6 +81,14 @@ export default async function apiFetch<T = any>(
 
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  // Debug: log outgoing request summary (mask token)
+  try {
+    // eslint-disable-next-line no-console
+    console.log('apiFetch ->', { url, method, headers: Object.fromEntries(Object.entries(requestHeaders).map(([k,v]) => [k, k.toLowerCase() === 'authorization' ? maskToken(v) : v])) })
+  } catch (e) {
+    // ignore logging errors
   }
 
   if (json) {

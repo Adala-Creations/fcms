@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = process.env.BACKEND_API_URL || 'https://surveysoftware.azurewebsites.net'
+const BACKEND_URL = process.env.BACKEND_API_URL || 'https://fcms.pindah.co.zw'
 
 export async function GET(
   request: NextRequest,
@@ -60,6 +60,13 @@ async function proxyRequest(
 
     // Get the authorization header from the request
     const authHeader = request.headers.get('authorization')
+    // Server debug: log incoming proxy request and auth header (if any)
+    try {
+      // eslint-disable-next-line no-console
+      console.log('Proxy incoming ->', { method, fullUrl, auth: authHeader ? `${authHeader.split(' ')[0]} ****` : null })
+    } catch (e) {
+      // ignore
+    }
     
     // Build headers for backend request
     const headers: HeadersInit = {
@@ -89,6 +96,14 @@ async function proxyRequest(
       headers,
       body,
     })
+
+    // Server debug: log backend response status
+    try {
+      // eslint-disable-next-line no-console
+      console.log('Proxy backend response ->', { url: fullUrl, status: response.status, contentType: response.headers.get('content-type') })
+    } catch (e) {
+      // ignore
+    }
 
     // Handle empty responses (like 204 No Content for DELETE)
     if (response.status === 204 || response.headers.get('content-length') === '0') {

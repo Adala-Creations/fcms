@@ -10,7 +10,7 @@
  import AuthLayout from '@/components/layout/auth-layout'
  import { register } from '@/lib/auth'
  import { setAuthToken } from '@/lib/api-client'
-
+ import { authService } from '@/lib/services/api.service'
  export default function TenantSignUp() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
@@ -25,7 +25,7 @@
     landlordEmail: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false,
+    agreeToTerms: true,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,11 +51,19 @@
       
       if (token) {
         setAuthToken(token)
+        
+        // Post-registration hook: Auto-assign Tenant role
+        try {
+          await authService.addUserToRole({ username: formData.username, roleName: 'Tenant' })
+        } catch (roleErr: any) {
+          console.warn('Role assignment warning:', roleErr.message)
+        }
+        
         router.push('/tenant/dashboard')
       } else {
         // Wait a moment before showing error in case token arrives slightly delayed
         await new Promise(resolve => setTimeout(resolve, 500))
-        setError('No token received from server')
+        setError('Go to login')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -174,7 +182,7 @@
           </div>
         </div>
 
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <input id="agreeToTerms" name="agreeToTerms" type="checkbox" required className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" checked={formData.agreeToTerms} onChange={handleInputChange} />
           <Label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-900">
             I agree to the{' '}
@@ -182,7 +190,7 @@
             and{' '}
             <Link href="/privacy" className="text-primary-600 hover:text-primary-500">Privacy Policy</Link>
           </Label>
-        </div>
+        </div> */}
 
         <div>
           <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>

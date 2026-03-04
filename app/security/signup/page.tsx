@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/layout/auth-layout'
 import { register } from '@/lib/auth'
 import { setAuthToken } from '@/lib/api-client'
+import { authService } from '@/lib/services/api.service'
 
 export default function SecuritySignUp() {
   const router = useRouter()
@@ -25,7 +26,7 @@ export default function SecuritySignUp() {
     shift: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false
+    agreeToTerms: true
   })
 
   const shifts = [
@@ -58,11 +59,19 @@ export default function SecuritySignUp() {
       
       if (token) {
         setAuthToken(token)
+        
+        // Post-registration hook: Auto-assign Security role
+        try {
+          await authService.addUserToRole({ username: formData.username, roleName: 'Security' })
+        } catch (roleErr: any) {
+          console.warn('Role assignment warning:', roleErr.message)
+        }
+        
         router.push('/security/dashboard')
       } else {
         // Wait a moment before showing error in case token arrives slightly delayed
         await new Promise(resolve => setTimeout(resolve, 500))
-        setError('No token received from server')
+        setError('Go to login')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -293,7 +302,7 @@ export default function SecuritySignUp() {
           </div>
         </div>
 
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <input
             id="agreeToTerms"
             name="agreeToTerms"
@@ -313,7 +322,7 @@ export default function SecuritySignUp() {
               Privacy Policy
             </Link>
           </Label>
-        </div>
+        </div> */}
 
         <div>
           <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>

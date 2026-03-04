@@ -24,7 +24,7 @@ First, ensure your backend API is accessible:
 
 ```bash
 # Test in PowerShell
-curl https://surveysoftware.azurewebsites.net/api/health
+curl https://fcms.pindah.co.zw/api/health
 ```
 
 ### Step 2: Update API Endpoints

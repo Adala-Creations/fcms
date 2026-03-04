@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/layout/auth-layout'
 import { register } from '@/lib/auth'
 import { setAuthToken } from '@/lib/api-client'
+import { authService } from '@/lib/services/api.service'
 
 export default function AdminSignUp() {
   const router = useRouter()
@@ -22,7 +23,7 @@ export default function AdminSignUp() {
     email: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false
+    agreeToTerms: true
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,13 +54,26 @@ export default function AdminSignUp() {
         
         console.log('Registration successful!')
         
+        // Post-registration hook: Auto-assign Admin role if not already assigned
+        try {
+          await authService.addUserToRole({ 
+            username: formData.username, 
+            roleName: 'Admin' 
+          })
+          console.log('Admin role assigned successfully')
+        } catch (roleErr: any) {
+          // Role assignment may fail if already assigned (409 conflict) or permission denied
+          // This is non-critical — user can still login
+          console.warn('Role assignment warning:', roleErr.message)
+        }
+        
         // Redirect to admin dashboard
         router.push('/admin/dashboard')
       } else {
           // Wait a moment before showing error in case token arrives slightly delayed
           await new Promise(resolve => setTimeout(resolve, 500))
           console.error('Server response:', response)
-          setError(`Registration successful but no token received. Response keys: ${Object.keys(response).join(', ')}. Please login.`)
+          setError(`Registration successful. Response keys: ${Object.keys(response).join(', ')}. Please login.`)
         // Redirect to signin after a delay
         setTimeout(() => router.push('/admin/signin'), 2000)
       }
@@ -210,7 +224,7 @@ export default function AdminSignUp() {
           </div>
         </div>
 
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <input
             id="agreeToTerms"
             name="agreeToTerms"
@@ -230,7 +244,7 @@ export default function AdminSignUp() {
               Privacy Policy
             </Link>
           </Label>
-        </div>
+        </div> */}
 
         <div>
           <Button type="submit" className="w-full flex justify-center items-center" disabled={loading}>

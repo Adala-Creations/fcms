@@ -1,7 +1,7 @@
 # API Integration Guide - Stage by Stage
 
 ## Overview
-This guide provides a systematic approach to integrate your backend API (https://surveysoftware.azurewebsites.net) with the FCMS frontend. Follow these stages in order for smooth integration.
+This guide provides a systematic approach to integrate your backend API (https://fcms.pindah.co.zw) with the FCMS frontend. Follow these stages in order for smooth integration.
 
 ---
 
@@ -17,7 +17,7 @@ This guide provides a systematic approach to integrate your backend API (https:/
 ```env
 # .env.local
 NEXT_PUBLIC_API_URL=
-BACKEND_API_URL=https://surveysoftware.azurewebsites.net
+BACKEND_API_URL=https://fcms.pindah.co.zw
 ```
 
 ---

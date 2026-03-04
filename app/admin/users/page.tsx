@@ -15,7 +15,8 @@ import { EditUserModal, DeleteUserModal, ManageRolesModal } from '@/components/a
 import { useToast } from '@/lib/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 
-const roleOptions = ['all', 'Admin', 'Owner', 'Tenant', 'ServiceProvider', 'Security', 'Authority']
+// will be populated from the backend; keeps the 'all' option at index 0
+const defaultRoleOptions: string[] = ['all']
 
 interface UserWithRoles extends UserDto {
   roles?: string[]
@@ -30,39 +31,61 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null)
   const [deletingUser, setDeletingUser] = useState<UserWithRoles | null>(null)
   const [managingRolesUser, setManagingRolesUser] = useState<UserWithRoles | null>(null)
+  const [allRoles, setAllRoles] = useState<string[]>([])
   const { toasts, showToast, dismissToast } = useToast()
 
-  // Fetch users from backend
+  // Fetch users and roles from backend
   const { data: users, loading, error, refetch } = useApi(
     () => userService.getUsers(),
     []
   )
 
+  const { data: rolesData, loading: loadingRoleList } = useApi(
+    () => roleService.getRoles(),
+    []
+  )
+
+  // keep a simple string list for filters/modals
+  useEffect(() => {
+    if (rolesData) {
+      setAllRoles(rolesData.map(r => r.name || '').filter(Boolean))
+    }
+  }, [rolesData])
+
   // Fetch roles for each user
   useEffect(() => {
     async function fetchUserRoles() {
-      if (!users || users.length === 0) return
-      
+      if (!users || users.length === 0 || allRoles.length === 0) return
+
       setLoadingRoles(true)
       try {
-        const usersWithRolesData = await Promise.all(
-          users.map(async (user) => {
+        // build a map username -> roles by asking the backend for each role's
+        // membership.  this mirrors what the server exposes in the absence of
+        // a direct "roles-for-user" endpoint.
+        const roleMap: Record<string, string[]> = {}
+
+        await Promise.all(
+          allRoles.map(async (role) => {
             try {
-              if (user.userName) {
-                const roles = await roleService.getUserRoles(user.userName)
-                return { ...user, roles }
-              }
-            } catch (err: any) {
-              // 404 means user has no roles assigned yet - this is normal
-              if (err?.message?.includes('404')) {
-                return { ...user, roles: [] }
-              }
-              // Log other errors
-              console.error(`Failed to fetch roles for ${user.userName}`, err)
+              const usersIn = await roleService.getUsersInRole(role)
+              usersIn.forEach(u => {
+                const key = u.userName || u.email || u.id || ''
+                if (!roleMap[key]) roleMap[key] = []
+                roleMap[key].push(role)
+              })
+            } catch (err) {
+              // if the role has no users or the backend returns 404 we ignore
+              if (err?.message && err.message.includes('404')) return
+              console.error(`error querying users for role ${role}`, err)
             }
-            return { ...user, roles: [] }
           })
         )
+
+        const usersWithRolesData = users.map(u => ({
+          ...u,
+          roles: roleMap[u.userName || ''] || []
+        }))
+
         setUsersWithRoles(usersWithRolesData)
       } catch (err) {
         console.error('Failed to fetch user roles', err)
@@ -73,7 +96,7 @@ export default function UsersPage() {
     }
 
     fetchUserRoles()
-  }, [users])
+  }, [users, allRoles])
 
   // CRUD handlers
   const handleEditUser = async (userId: string, data: Partial<UserDto>) => {
@@ -148,10 +171,10 @@ export default function UsersPage() {
                 <CardTitle>All Users</CardTitle>
                 <CardDescription>Manage and monitor all system users</CardDescription>
               </div>
-              <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+              {/* <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add User
-              </Button>
+              </Button> */}
             </div>
           </CardHeader>
           <CardContent>
@@ -172,12 +195,17 @@ export default function UsersPage() {
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  disabled={loadingRoleList}
                 >
-                  {roleOptions.map(role => (
-                    <option key={role} value={role}>
-                      {role === 'all' ? 'All Roles' : role}
-                    </option>
-                  ))}
+                  {loadingRoleList ? (
+                    <option>Loading roles...</option>
+                  ) : (
+                    [...defaultRoleOptions, ...allRoles].map(role => (
+                      <option key={role} value={role}>
+                        {role === 'all' ? 'All Roles' : role}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
@@ -397,6 +425,7 @@ export default function UsersPage() {
         {managingRolesUser && (
           <ManageRolesModal
             user={managingRolesUser}
+            allRoles={[...defaultRoleOptions, ...allRoles]}
             onClose={() => setManagingRolesUser(null)}
             onAddRole={handleAddRole}
             onRemoveRole={handleRemoveRole}
