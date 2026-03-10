@@ -216,11 +216,11 @@ export const paymentService = {
     // For now, just fetch all payments and filter client-side
     // TODO: Update when backend supports query parameters
     const payments = await apiFetch<PaymentDto[]>('/api/Payments', { method: 'GET' })
-    
+
     if (params?.tenantId) {
       return payments.filter(p => p.tenantId === parseInt(params.tenantId!))
     }
-    
+
     return payments
   },
 
@@ -288,6 +288,26 @@ export const serviceRequestService = {
 
   async getServiceRequestById(id: number): Promise<ServiceRequestDto> {
     return apiFetch<ServiceRequestDto>(`/api/ServiceRequests/${id}`, { method: 'GET' })
+  },
+
+  async createServiceRequest(data: Partial<ServiceRequestDto>): Promise<ServiceRequestDto> {
+    const { id, ...createData } = data as ServiceRequestDto
+    return apiFetch<ServiceRequestDto>('/api/ServiceRequests', {
+      method: 'POST',
+      json: createData
+    })
+  },
+
+  async updateServiceRequest(id: number, data: Partial<ServiceRequestDto>): Promise<void> {
+    const { id: _, ...updateData } = data as ServiceRequestDto
+    return apiFetch<void>(`/api/ServiceRequests/${id}`, {
+      method: 'PUT',
+      json: updateData
+    })
+  },
+
+  async deleteServiceRequest(id: number): Promise<void> {
+    return apiFetch<void>(`/api/ServiceRequests/${id}`, { method: 'DELETE' })
   }
 }
 

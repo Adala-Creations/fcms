@@ -1,19 +1,23 @@
 'use client'
 
-import { 
-  CreditCard, 
-  QrCode, 
-  Wrench, 
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  CreditCard,
+  QrCode,
+  Wrench,
   AlertCircle,
   CheckCircle,
   Clock,
   DollarSign,
-  Calendar
+  Calendar,
+  Plus
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/layout/header'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useToast } from '@/lib/hooks/useToast'
 
 // Mock data for tenant
 const tenantData = {
@@ -50,13 +54,20 @@ const serviceRequests = [
 ]
 
 export default function TenantDashboard() {
+  const router = useRouter()
+  const { info } = useToast()
+
+  const handleAction = (title: string) => {
+    info(`Action Triggered: ${title}. This would normally open a form or process.`)
+  }
+
   return (
     <div>
-      <Header 
-        title="My Dashboard" 
+      <Header
+        title="My Dashboard"
         subtitle={`Welcome back, ${tenantData.name}`}
       />
-      
+
       <div className="p-4 lg:p-6 space-y-4 lg:space-y-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -107,19 +118,34 @@ export default function TenantDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Button className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+            onClick={() => router.push('/tenant/payments')}
+          >
             <CreditCard className="h-6 w-6" />
             <span>Make Payment</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button
+            variant="outline"
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+            onClick={() => router.push('/tenant/visitors')}
+          >
             <QrCode className="h-6 w-6" />
             <span>Generate Visitor Code</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button
+            variant="outline"
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+            onClick={() => router.push('/tenant/requests')}
+          >
             <Wrench className="h-6 w-6" />
             <span>Request Service</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button
+            variant="outline"
+            className="h-20 flex flex-col items-center justify-center space-y-2"
+            onClick={() => handleAction('Report Issue')}
+          >
             <AlertCircle className="h-6 w-6" />
             <span>Report Issue</span>
           </Button>
@@ -143,7 +169,11 @@ export default function TenantDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-warning-600">{formatCurrency(payment.amount)}</p>
-                      <Button size="sm" className="mt-1">
+                      <Button
+                        size="sm"
+                        className="mt-1"
+                        onClick={() => router.push('/tenant/payments')}
+                      >
                         Pay Now
                       </Button>
                     </div>
@@ -206,17 +236,20 @@ export default function TenantDashboard() {
                       <p className="text-xs text-gray-400">Submitted {formatDate(request.date)}</p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        request.status === 'completed' ? 'bg-success-100 text-success-800' :
-                        request.status === 'in-progress' ? 'bg-warning-100 text-warning-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${request.status === 'completed' ? 'bg-success-100 text-success-800' :
+                          request.status === 'in-progress' ? 'bg-warning-100 text-warning-800' :
+                            'bg-gray-100 text-gray-800'
+                        }`}>
                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                       </span>
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push('/tenant/requests')}
+                >
                   <Wrench className="h-4 w-4 mr-2" />
                   Submit New Request
                 </Button>
@@ -247,7 +280,11 @@ export default function TenantDashboard() {
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" className="w-full">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push('/tenant/payments')}
+                >
                   <CreditCard className="h-4 w-4 mr-2" />
                   View All Payments
                 </Button>

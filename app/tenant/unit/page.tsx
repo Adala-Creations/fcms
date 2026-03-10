@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  Building2, 
+import { useRouter } from 'next/navigation'
+import {
+  Building2,
   Calendar,
   DollarSign,
   Users,
@@ -19,6 +20,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/layout/header'
+import { useToast } from '@/lib/hooks/useToast'
 
 // Mock data for tenant's unit
 const unitData = {
@@ -94,6 +96,12 @@ const formatDate = (dateString: string) => {
 
 export default function TenantUnit() {
   const [activeTab, setActiveTab] = useState('overview')
+  const router = useRouter()
+  const { info } = useToast()
+
+  const handleAction = (title: string) => {
+    info(`Action Triggered: ${title}. Feature simulated.`)
+  }
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Building2 },
@@ -117,7 +125,7 @@ export default function TenantUnit() {
                 <h3 className="text-lg font-semibold text-gray-900">{unitData.unitNumber}</h3>
                 <p className="text-gray-600">Block {unitData.block} • {unitData.size} • {unitData.floor}</p>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Monthly Rent:</span>
@@ -180,11 +188,18 @@ export default function TenantUnit() {
               </div>
             </div>
             <div className="space-y-2">
-              <Button className="w-full">
+              <Button
+                className="w-full"
+                onClick={() => window.location.href = `tel:${unitData.landlord.phone}`}
+              >
                 <Phone className="h-4 w-4 mr-2" />
                 Call Landlord
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => window.location.href = `mailto:${unitData.landlord.email}`}
+              >
                 <Mail className="h-4 w-4 mr-2" />
                 Send Email
               </Button>
@@ -274,7 +289,11 @@ export default function TenantUnit() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold text-gray-900">${payment.amount}</p>
-                  <Button size="sm" className="mt-2">
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => router.push('/tenant/payments')}
+                  >
                     Pay Now
                   </Button>
                 </div>
@@ -332,11 +351,10 @@ export default function TenantUnit() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    item.status === 'completed' ? 'bg-success-100 text-success-800' :
-                    item.status === 'in-progress' ? 'bg-warning-100 text-warning-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${item.status === 'completed' ? 'bg-success-100 text-success-800' :
+                      item.status === 'in-progress' ? 'bg-warning-100 text-warning-800' :
+                        'bg-gray-100 text-gray-800'
+                    }`}>
                     {item.status}
                   </span>
                   <p className="text-sm text-gray-600 mt-1">Cost: ${item.cost}</p>
@@ -353,7 +371,10 @@ export default function TenantUnit() {
           <CardDescription>Report issues or request repairs</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full">
+          <Button
+            className="w-full"
+            onClick={() => router.push('/tenant/requests')}
+          >
             <Wrench className="h-4 w-4 mr-2" />
             Submit Maintenance Request
           </Button>
@@ -379,7 +400,8 @@ export default function TenantUnit() {
                   <p className="text-sm text-gray-600">Signed on {formatDate(unitData.leaseStart)}</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
+              <Button onClick={() => handleAction('Download Lease Agreement')} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
                 Download
               </Button>
             </div>
@@ -392,7 +414,8 @@ export default function TenantUnit() {
                   <p className="text-sm text-gray-600">Updated January 2024</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
+              <Button onClick={() => handleAction('Download House Rules')} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
                 Download
               </Button>
             </div>
@@ -405,7 +428,8 @@ export default function TenantUnit() {
                   <p className="text-sm text-gray-600">Last 12 months</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
+              <Button onClick={() => handleAction('Download Payment Receipts')} variant="outline" size="sm">
+                <FileText className="h-4 w-4 mr-2" />
                 Download
               </Button>
             </div>
@@ -432,11 +456,11 @@ export default function TenantUnit() {
 
   return (
     <div className="space-y-6">
-      <Header 
-        title="My Unit" 
+      <Header
+        title="My Unit"
         subtitle="Manage your rental unit and tenancy details"
       />
-      
+
       {/* Tabs */}
       <Card>
         <CardContent className="p-0">
@@ -447,11 +471,10 @@ export default function TenantUnit() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.id
+                  className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
                       ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
                   {tab.name}

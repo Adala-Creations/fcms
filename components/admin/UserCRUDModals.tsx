@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { X, Shield } from 'lucide-react'
-import type { UserDto } from '@/lib/types/api'
+import type { UserDto, RegisterRequest } from '@/lib/types/api'
 
 // role list is now supplied from the parent so that it matches whatever the
 // backend reports rather than being hard-coded.
@@ -35,7 +35,7 @@ export function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
       onClose()
     } catch (err: any) {
       console.error('Failed to update user', err)
-      const errorMsg = err?.message?.includes('400') 
+      const errorMsg = err?.message?.includes('400')
         ? 'Invalid data. Please check all fields are correct.'
         : 'Failed to update user. Please try again.'
       alert(errorMsg)
@@ -59,7 +59,7 @@ export function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
             <Label htmlFor="userName">Username</Label>
             <Input
               id="userName"
-              value={formData.userName}
+              value={formData.userName ?? ''}
               onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
               required
             />
@@ -70,7 +70,7 @@ export function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
             <Input
               id="email"
               type="email"
-              value={formData.email}
+              value={formData.email ?? ''}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
             />
@@ -80,7 +80,7 @@ export function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
             <Label htmlFor="phoneNumber">Phone Number</Label>
             <Input
               id="phoneNumber"
-              value={formData.phoneNumber}
+              value={formData.phoneNumber ?? ''}
               onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
             />
           </div>
@@ -170,8 +170,8 @@ export function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalPro
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleDelete} 
+          <Button
+            onClick={handleDelete}
             disabled={loading}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
@@ -198,7 +198,7 @@ export function ManageRolesModal({ user, allRoles, onClose, onAddRole, onRemoveR
 
   const handleAddRole = async () => {
     if (!selectedRole || !user.userName) return
-    
+
     setLoading(true)
     try {
       await onAddRole(user.userName, selectedRole)
@@ -216,7 +216,7 @@ export function ManageRolesModal({ user, allRoles, onClose, onAddRole, onRemoveR
 
   const handleRemoveRole = async (role: string) => {
     if (!user.userName) return
-    
+
     setLoading(true)
     try {
       await onRemoveRole(user.userName, role)
@@ -303,3 +303,106 @@ export function ManageRolesModal({ user, allRoles, onClose, onAddRole, onRemoveR
     </div>
   )
 }
+
+export function AddUserModal({ onClose, onAdd, allRoles }: {
+  onClose: () => void,
+  onAdd: (data: RegisterRequest) => Promise<void>,
+  allRoles: string[]
+}) {
+  const [formData, setFormData] = useState<RegisterRequest>({
+    username: '',
+    email: '',
+    password: '',
+    role: 'Tenant'
+  })
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await onAdd(formData)
+      onClose()
+    } catch (err: any) {
+      console.error('Failed to add user', err)
+      alert(err.message || 'Failed to add user')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Add New User</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              value={formData.username ?? ''}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              required
+              placeholder="johndoe"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email ?? ''}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              placeholder="john@example.com"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password ?? ''}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="role">Initial Role</Label>
+            <select
+              id="role"
+              value={formData.role ?? 'Tenant'}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            >
+              {allRoles.filter(r => r !== 'all').map(role => (
+                <option key={role} value={role}>{role}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Adding...' : 'Add User'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+

@@ -1,16 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { CreditCard, Calendar, CheckCircle, Clock, AlertCircle, QrCode } from 'lucide-react'
+import { CreditCard, Calendar, CheckCircle, Clock, AlertCircle, QrCode, FileText } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useToast } from '@/lib/hooks/useToast'
 
 // Mock data
-const paymentHistory = [
+const paymentHistoryData = [
   {
     id: 1,
     type: 'Rent',
@@ -53,7 +54,7 @@ const paymentHistory = [
   }
 ]
 
-const upcomingPayments = [
+const upcomingPaymentsData = [
   {
     id: 1,
     type: 'Rent',
@@ -99,9 +100,10 @@ export default function TenantPaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [selectedMethod, setSelectedMethod] = useState('')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const { info, success } = useToast()
 
-  const totalDue = upcomingPayments.reduce((sum, payment) => sum + payment.amount, 0)
-  const totalPaid = paymentHistory.reduce((sum, payment) => sum + payment.amount, 0)
+  const totalDue = upcomingPaymentsData.reduce((sum, payment) => sum + payment.amount, 0)
+  const totalPaid = paymentHistoryData.reduce((sum, payment) => sum + payment.amount, 0)
 
   const handlePayNow = (payment: any) => {
     setSelectedPayment(payment)
@@ -113,13 +115,22 @@ export default function TenantPaymentsPage() {
     setShowPaymentModal(true)
   }
 
+  const handleConfirmPayment = () => {
+    setShowPaymentModal(false)
+    success(`Payment for ${selectedPayment?.type} submitted successfully!`)
+  }
+
+  const handleAction = (title: string) => {
+    info(`Action Triggered: ${title}. Feature simulated.`)
+  }
+
   return (
     <div>
-      <Header 
-        title="Payment Center" 
+      <Header
+        title="Payment Center"
         subtitle="Manage your rent and service payments"
       />
-      
+
       <div className="p-6 space-y-6">
         {/* Payment Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -169,11 +180,11 @@ export default function TenantPaymentsPage() {
                 <CreditCard className="h-5 w-5 mr-2" />
                 Pay All Due ({formatCurrency(totalDue)})
               </Button>
-              <Button variant="outline" className="flex-1 h-12">
+              <Button onClick={() => handleAction('Auto-Pay Setup')} variant="outline" className="flex-1 h-12">
                 <Calendar className="h-5 w-5 mr-2" />
                 Set Up Auto-Pay
               </Button>
-              <Button variant="outline" className="flex-1 h-12">
+              <Button onClick={() => handleAction('QR Generation')} variant="outline" className="flex-1 h-12">
                 <QrCode className="h-5 w-5 mr-2" />
                 Generate Payment QR
               </Button>
@@ -189,7 +200,7 @@ export default function TenantPaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {upcomingPayments.map((payment) => (
+              {upcomingPaymentsData.map((payment) => (
                 <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
@@ -228,7 +239,7 @@ export default function TenantPaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {paymentHistory.map((payment) => (
+              {paymentHistoryData.map((payment) => (
                 <div key={payment.id} className="flex items-center justify-between p-4 bg-success-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-success-100 rounded-lg flex items-center justify-center">
@@ -260,18 +271,18 @@ export default function TenantPaymentsPage() {
               <h3 className="text-lg font-semibold mb-4">
                 Pay {selectedPayment?.type} - {formatCurrency(selectedPayment?.amount)}
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="amount">Amount</Label>
-                  <Input 
-                    id="amount" 
-                    value={formatCurrency(selectedPayment?.amount)} 
-                    disabled 
+                  <Input
+                    id="amount"
+                    value={formatCurrency(selectedPayment?.amount)}
+                    disabled
                     className="bg-gray-50"
                   />
                 </div>
-                
+
                 <div>
                   <Label>Payment Method</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
@@ -279,9 +290,8 @@ export default function TenantPaymentsPage() {
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method.id)}
-                        className={`p-3 border rounded-lg text-left hover:bg-gray-50 ${
-                          selectedMethod === method.id ? 'border-primary-500 bg-primary-50' : 'border-gray-300'
-                        }`}
+                        className={`p-3 border rounded-lg text-left hover:bg-gray-50 ${selectedMethod === method.id ? 'border-primary-500 bg-primary-50' : 'border-gray-300'
+                          }`}
                       >
                         <div className="flex items-center space-x-2">
                           <span className="text-lg">{method.icon}</span>
@@ -307,13 +317,13 @@ export default function TenantPaymentsPage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex justify-end space-x-2 mt-6">
                 <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={() => setShowPaymentModal(false)}
+                <Button
+                  onClick={handleConfirmPayment}
                   disabled={!selectedMethod}
                 >
                   Confirm Payment

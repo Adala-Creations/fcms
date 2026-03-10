@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
+import { useToast } from '@/lib/hooks/useToast'
 
 export default function TenantProfilePage() {
+  const { success, info } = useToast()
   const [formData, setFormData] = useState({
     firstName: 'Jane',
     lastName: 'Smith',
@@ -22,7 +24,7 @@ export default function TenantProfilePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Profile updated:', formData)
-    alert('Profile updated successfully!')
+    success('Profile updated successfully!')
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,13 +35,17 @@ export default function TenantProfilePage() {
     }))
   }
 
+  const handleAction = (title: string) => {
+    info(`Action Triggered: ${title}. Feature simulated.`)
+  }
+
   return (
     <div>
-      <Header 
-        title="Profile Settings" 
+      <Header
+        title="Profile Settings"
         subtitle="Manage your tenant profile"
       />
-      
+
       <div className="p-4 lg:p-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Picture */}
@@ -54,11 +60,11 @@ export default function TenantProfilePage() {
                   <div className="h-24 w-24 rounded-full bg-warning-100 flex items-center justify-center">
                     <User className="h-12 w-12 text-warning-600" />
                   </div>
-                  <button className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border">
+                  <button onClick={() => handleAction('Camera')} className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border">
                     <Camera className="h-4 w-4 text-gray-600" />
                   </button>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button onClick={() => handleAction('Change Photo')} variant="outline" size="sm">
                   Change Photo
                 </Button>
               </div>

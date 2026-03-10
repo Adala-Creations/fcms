@@ -10,8 +10,8 @@ import Header from '@/components/layout/header'
 import { formatDate, getInitials, getStatusColor } from '@/lib/utils'
 import { useApi } from '@/lib/hooks/useApi'
 import { userService, roleService, authService } from '@/lib/services/api.service'
-import type { UserDto } from '@/lib/types/api'
-import { EditUserModal, DeleteUserModal, ManageRolesModal } from '@/components/admin/UserCRUDModals'
+import type { UserDto, RegisterRequest } from '@/lib/types/api'
+import { EditUserModal, DeleteUserModal, ManageRolesModal, AddUserModal } from '@/components/admin/UserCRUDModals'
 import { useToast } from '@/lib/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 
@@ -99,6 +99,17 @@ export default function UsersPage() {
   }, [users, allRoles])
 
   // CRUD handlers
+  const handleAddUser = async (data: RegisterRequest) => {
+    try {
+      await authService.register(data)
+      showToast('User added successfully', 'success')
+      refetch()
+    } catch (err: any) {
+      showToast(`Failed to add user: ${err.message}`, 'error')
+      throw err
+    }
+  }
+
   const handleEditUser = async (userId: string, data: Partial<UserDto>) => {
     try {
       await userService.updateUser(userId, data)
@@ -144,24 +155,24 @@ export default function UsersPage() {
   }
 
   const filteredUsers = usersWithRoles.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phoneNumber?.includes(searchTerm)
-    
-    const matchesRole = roleFilter === 'all' || 
+
+    const matchesRole = roleFilter === 'all' ||
       (user.roles && user.roles.some(r => r === roleFilter))
-    
+
     return matchesSearch && matchesRole
   })
 
   return (
     <div>
-      <Header 
-        title="User Management" 
+      <Header
+        title="User Management"
         subtitle="Manage residents, owners, and service providers"
       />
-      
+
       <div className="p-6 space-y-6">
         {/* Filters and Actions */}
         <Card>
@@ -171,10 +182,10 @@ export default function UsersPage() {
                 <CardTitle>All Users</CardTitle>
                 <CardDescription>Manage and monitor all system users</CardDescription>
               </div>
-              {/* <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+              <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add User
-              </Button> */}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -291,58 +302,54 @@ export default function UsersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.lockoutEnabled && user.lockoutEnd 
-                              ? 'bg-red-100 text-red-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.lockoutEnabled && user.lockoutEnd
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                            }`}>
                             {user.lockoutEnabled && user.lockoutEnd ? 'Locked Out' : 'Active'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{user.email || 'N/A'}</div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            user.emailConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.emailConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
                             {user.emailConfirmed ? '✓' : '?'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{user.phoneNumber || 'N/A'}</div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            user.phoneNumberConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.phoneNumberConfirmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
                             {user.phoneNumberConfirmed ? '✓' : '?'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.twoFactorEnabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.twoFactorEnabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
                             {user.twoFactorEnabled ? 'On' : 'Off'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => setManagingRolesUser(user)}
                               title="Manage Roles"
                             >
                               <Shield className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => setEditingUser(user)}
                               title="Edit User"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="text-danger-600 hover:text-danger-700"
                               onClick={() => setDeletingUser(user)}
                               title="Delete User"
@@ -362,47 +369,11 @@ export default function UsersPage() {
 
         {/* Add User Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-4">Add New User</h3>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="Enter full name" />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="Enter email address" />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="Enter phone number" />
-                </div>
-                <div>
-                  <Label htmlFor="role">Role</Label>
-                  <select id="role" className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option value="owner">Owner</option>
-                    <option value="tenant">Tenant</option>
-                    <option value="service-provider">Service Provider</option>
-                    <option value="security">Security</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="unit">Unit (if applicable)</Label>
-                  <Input id="unit" placeholder="e.g., A-12" />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 mt-6">
-                <Button variant="outline" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setShowAddModal(false)}>
-                  Add User
-                </Button>
-              </div>
-            </div>
-          </div>
+          <AddUserModal
+            onClose={() => setShowAddModal(false)}
+            onAdd={handleAddUser}
+            allRoles={[...defaultRoleOptions, ...allRoles]}
+          />
         )}
 
         {/* CRUD Modals */}

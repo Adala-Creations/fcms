@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  Wrench, 
-  Plus, 
-  Search, 
-  Filter, 
+import {
+  Wrench,
+  Plus,
+  Search,
+  Filter,
   Eye,
   Clock,
   CheckCircle,
@@ -23,80 +23,33 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
+import { useToast } from '@/lib/hooks/useToast'
+import { useApi } from '@/lib/hooks/useApi'
+import { serviceRequestService } from '@/lib/services/api.service'
+import type { ServiceRequestDto } from '@/lib/types/api'
 
-// Mock data for service requests
-const serviceRequests = [
+// Mock data for service requests - mapped to match ServiceRequestDto where possible
+const serviceRequestsData: any[] = [
   {
     id: 1,
     category: 'Plumbing',
-    title: 'Leaky faucet in kitchen',
-    description: 'The kitchen faucet has been dripping continuously for the past week. Water is pooling under the sink and causing damage to the cabinet.',
+    title: 'Leaking Tap',
+    description: 'The kitchen tap is leaking constantly, wasting a lot of water.',
     priority: 'Medium',
-    status: 'in-progress',
-    assignedTo: 'John Plumbing Services',
-    assignedToPhone: '+263 77 123 4567',
-    assignedToEmail: 'john@plumbing.co.zw',
-    requestedAt: '2024-01-15T10:30:00',
-    scheduledFor: '2024-01-16T14:00:00',
-    completedAt: null,
-    estimatedCost: 50,
-    actualCost: null,
-    images: ['/images/leaky-faucet-1.jpg', '/images/leaky-faucet-2.jpg'],
+    status: 'pending',
+    requestedAt: '2024-03-10T10:30:00Z',
     unit: 'B-05'
   },
   {
     id: 2,
     category: 'Electrical',
-    title: 'Light not working in bedroom',
-    description: 'The bedroom light fixture stopped working yesterday. Tried changing the bulb but still no power. The switch also feels loose.',
+    title: 'Flickering Lights',
+    description: 'Living room lights are flickering.',
     priority: 'High',
-    status: 'pending',
-    assignedTo: null,
-    assignedToPhone: null,
-    assignedToEmail: null,
-    requestedAt: '2024-01-14T16:45:00',
-    scheduledFor: null,
-    completedAt: null,
-    estimatedCost: 75,
-    actualCost: null,
-    images: ['/images/broken-light.jpg'],
-    unit: 'B-05'
-  },
-  {
-    id: 3,
-    category: 'Maintenance',
-    title: 'Door lock is sticking',
-    description: 'The front door lock has become difficult to turn and sometimes gets stuck. Need lubrication or repair.',
-    priority: 'Low',
-    status: 'completed',
-    assignedTo: 'Maintenance Team',
-    assignedToPhone: '+263 77 333 3333',
-    assignedToEmail: 'maintenance@complex.co.zw',
-    requestedAt: '2024-01-10T09:00:00',
-    scheduledFor: '2024-01-12T10:00:00',
-    completedAt: '2024-01-12T15:30:00',
-    estimatedCost: 30,
-    actualCost: 25,
-    images: [],
-    unit: 'B-05'
-  },
-  {
-    id: 4,
-    category: 'Cleaning',
-    title: 'Deep clean after renovation',
-    description: 'Unit needs deep cleaning after recent renovation work. Carpets, walls, and fixtures need attention.',
-    priority: 'Medium',
-    status: 'cancelled',
-    assignedTo: 'Clean Supplies Ltd',
-    assignedToPhone: '+263 77 444 4444',
-    assignedToEmail: 'contact@cleansupplies.co.zw',
-    requestedAt: '2024-01-13T11:20:00',
-    scheduledFor: '2024-01-15T09:00:00',
-    completedAt: null,
-    estimatedCost: 120,
-    actualCost: null,
-    images: [],
-    unit: 'B-05'
+    status: 'in-progress',
+    requestedAt: '2024-03-09T14:00:00Z',
+    unit: 'B-05',
+    assignedTo: 'John Doe'
   }
 ]
 
@@ -125,22 +78,65 @@ export default function TenantRequests() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const { info, success, error: showError } = useToast()
 
-  const filteredRequests = serviceRequests.filter(request => {
-    const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.category.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || request.status === filterStatus
-    const matchesCategory = filterCategory === 'all' || request.category === filterCategory
+  const [createForm, setCreateForm] = useState({
+    category: 'Plumbing',
+    title: '',
+    description: '',
+    priority: 'Medium'
+  })
+
+  // Fetch real requests from API
+  const { data: apiRequests, loading, error, refetch } = useApi(
+    () => serviceRequestService.getServiceRequests(),
+    []
+  )
+
+  const handleAction = (title: string) => {
+    info(`Action Triggered: ${title}. Real functionality coming soon.`)
+  }
+
+  const handleCreateChange = (e: any) => {
+    const { id, value } = e.target
+    setCreateForm(prev => ({ ...prev, [id]: value }))
+  }
+
+  const handleSubmitRequest = async () => {
+    try {
+      await serviceRequestService.createServiceRequest({
+        ...createForm,
+        unit: 'B-05', // Mock unit for now
+        requestedAt: new Date().toISOString(),
+        status: 'pending'
+      } as any)
+
+      setShowCreateModal(false)
+      success("Service request submitted successfully!")
+      refetch()
+    } catch (err: any) {
+      showError(`Failed to submit: ${err.message}`)
+    }
+  }
+
+  // Use API data if available, otherwise fallback to mock data
+  const requests = apiRequests || serviceRequestsData
+
+  const filteredRequests = requests.filter(request => {
+    const matchesSearch = ((request as any).title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ((request as any).description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ((request as any).category || '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || (request as any).status === filterStatus
+    const matchesCategory = filterCategory === 'all' || (request as any).category === filterCategory
     return matchesSearch && matchesStatus && matchesCategory
   })
 
   const stats = {
-    total: serviceRequests.length,
-    pending: serviceRequests.filter(r => r.status === 'pending').length,
-    inProgress: serviceRequests.filter(r => r.status === 'in-progress').length,
-    completed: serviceRequests.filter(r => r.status === 'completed').length,
-    cancelled: serviceRequests.filter(r => r.status === 'cancelled').length
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    inProgress: requests.filter(r => r.status === 'in-progress').length,
+    completed: requests.filter(r => r.status === 'completed').length,
+    cancelled: requests.filter(r => r.status === 'cancelled').length
   }
 
   const categories = ['Plumbing', 'Electrical', 'Maintenance', 'Cleaning', 'Security', 'Other']
@@ -159,11 +155,11 @@ export default function TenantRequests() {
 
   return (
     <div className="space-y-6">
-      <Header 
-        title="Service Requests" 
+      <Header
+        title="Service Requests"
         subtitle="Request maintenance and report issues for your unit"
       />
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
@@ -240,7 +236,7 @@ export default function TenantRequests() {
                 <Plus className="h-4 w-4 mr-2" />
                 New Request
               </Button>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button onClick={() => handleAction('Report Issue')} variant="outline" className="w-full sm:w-auto">
                 <Camera className="h-4 w-4 mr-2" />
                 Report Issue
               </Button>
@@ -263,7 +259,7 @@ export default function TenantRequests() {
                   className="pl-10"
                 />
               </div>
-              
+
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -312,7 +308,7 @@ export default function TenantRequests() {
                           </span>
                           <span className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
-                            {getDaysAgo(request.requestedAt)}
+                            {formatDateTime((request as any).requestedAt || (request as any).requestDate)}
                           </span>
                         </div>
                       </div>
@@ -336,12 +332,12 @@ export default function TenantRequests() {
                       </div>
                       <div>
                         <span className="text-gray-600">Estimated Cost:</span>
-                        <p className="font-medium">${request.estimatedCost}</p>
+                        <p className="font-medium">${(request as any).estimatedCost}</p>
                       </div>
-                      {request.actualCost && (
+                      {(request as any).actualCost && (
                         <div>
                           <span className="text-gray-600">Actual Cost:</span>
-                          <p className="font-medium">${request.actualCost}</p>
+                          <p className="font-medium">${(request as any).actualCost}</p>
                         </div>
                       )}
                       <div>
@@ -350,11 +346,11 @@ export default function TenantRequests() {
                       </div>
                     </div>
 
-                    {request.images.length > 0 && (
+                    {(request as any).images?.length > 0 && (
                       <div className="mt-4">
                         <p className="text-sm font-medium text-gray-900 mb-2">Attached Images:</p>
                         <div className="flex space-x-2">
-                          {request.images.map((image, index) => (
+                          {(request as any).images.map((image: string, index: number) => (
                             <div key={index} className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
                               <Camera className="h-6 w-6 text-gray-400" />
                             </div>
@@ -372,18 +368,18 @@ export default function TenantRequests() {
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <span className="flex items-center">
                                 <Phone className="h-4 w-4 mr-1" />
-                                {request.assignedToPhone}
+                                {(request as any).assignedToPhone}
                               </span>
                               <span className="flex items-center">
                                 <Mail className="h-4 w-4 mr-1" />
-                                {request.assignedToEmail}
+                                {(request as any).assignedToEmail}
                               </span>
                             </div>
                           </div>
-                          {request.scheduledFor && (
+                          {(request as any).scheduledFor && (
                             <div className="text-right">
                               <p className="text-sm text-gray-600">Scheduled for:</p>
-                              <p className="font-medium">{formatDateTime(request.scheduledFor)}</p>
+                              <p className="font-medium">{formatDateTime((request as any).scheduledFor)}</p>
                             </div>
                           )}
                         </div>
@@ -393,18 +389,18 @@ export default function TenantRequests() {
 
                   <div className="mt-4 lg:mt-0 lg:ml-6">
                     <div className="flex flex-col space-y-2">
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button onClick={() => handleAction('View Details')} variant="outline" size="sm" className="w-full">
                         <Eye className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
                       {request.status === 'pending' && (
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button onClick={() => handleAction('Update Request')} variant="outline" size="sm" className="w-full">
                           <Wrench className="h-4 w-4 mr-1" />
                           Update Request
                         </Button>
                       )}
                       {request.status === 'completed' && (
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button onClick={() => handleAction('View Report')} variant="outline" size="sm" className="w-full">
                           <FileText className="h-4 w-4 mr-1" />
                           View Report
                         </Button>
@@ -432,6 +428,8 @@ export default function TenantRequests() {
                   <Label htmlFor="category">Category</Label>
                   <select
                     id="category"
+                    value={createForm.category}
+                    onChange={handleCreateChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     {categories.map(category => (
@@ -441,13 +439,20 @@ export default function TenantRequests() {
                 </div>
                 <div>
                   <Label htmlFor="title">Title</Label>
-                  <Input id="title" placeholder="Brief description of the issue" />
+                  <Input
+                    id="title"
+                    value={createForm.title}
+                    onChange={handleCreateChange}
+                    placeholder="Brief description of the issue"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="description">Description</Label>
                   <textarea
                     id="description"
                     rows={3}
+                    value={createForm.description}
+                    onChange={handleCreateChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Detailed description of the issue"
                   />
@@ -456,6 +461,8 @@ export default function TenantRequests() {
                   <Label htmlFor="priority">Priority</Label>
                   <select
                     id="priority"
+                    value={createForm.priority}
+                    onChange={handleCreateChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="Low">Low</option>
@@ -464,7 +471,7 @@ export default function TenantRequests() {
                   </select>
                 </div>
                 <div className="flex space-x-3">
-                  <Button className="flex-1">Submit Request</Button>
+                  <Button onClick={handleSubmitRequest} className="flex-1">Submit Request</Button>
                   <Button variant="outline" onClick={() => setShowCreateModal(false)}>
                     Cancel
                   </Button>

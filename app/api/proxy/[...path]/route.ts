@@ -11,37 +11,42 @@ const BACKEND_URL = process.env.BACKEND_API_URL || 'https://fcms.pindah.co.zw'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  return proxyRequest(request, params.path, 'GET')
+  const { path } = await params
+  return proxyRequest(request, path, 'GET')
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  return proxyRequest(request, params.path, 'POST')
+  const { path } = await params
+  return proxyRequest(request, path, 'POST')
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  return proxyRequest(request, params.path, 'PUT')
+  const { path } = await params
+  return proxyRequest(request, path, 'PUT')
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  return proxyRequest(request, params.path, 'DELETE')
+  const { path } = await params
+  return proxyRequest(request, path, 'DELETE')
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  return proxyRequest(request, params.path, 'PATCH')
+  const { path } = await params
+  return proxyRequest(request, path, 'PATCH')
 }
 
 async function proxyRequest(
@@ -53,7 +58,7 @@ async function proxyRequest(
     // Build the backend URL
     const path = pathSegments.join('/')
     const backendUrl = `${BACKEND_URL}/api/${path}`
-    
+
     // Get search params from the original request
     const searchParams = request.nextUrl.searchParams.toString()
     const fullUrl = searchParams ? `${backendUrl}?${searchParams}` : backendUrl
@@ -67,12 +72,12 @@ async function proxyRequest(
     } catch (e) {
       // ignore
     }
-    
+
     // Build headers for backend request
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }
-    
+
     if (authHeader) {
       headers['Authorization'] = authHeader
     }
@@ -115,7 +120,7 @@ async function proxyRequest(
     // Get response data
     const contentType = response.headers.get('content-type')
     const data = await response.text()
-    
+
     // Return response with same status code
     return new NextResponse(data || null, {
       status: response.status,

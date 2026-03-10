@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  Shield, 
-  Plus, 
-  Search, 
-  Filter, 
+import {
+  Shield,
+  Plus,
+  Search,
+  Filter,
   Eye,
   QrCode,
   Calendar,
@@ -16,123 +16,119 @@ import {
   Copy,
   User,
   Phone,
-  Mail
+  Mail,
+  X
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
+import { useToast } from '@/lib/hooks/useToast'
+import { useApi } from '@/lib/hooks/useApi'
+import { visitorService } from '@/lib/services/api.service'
+import type { VisitorDto } from '@/lib/types/api'
 
-// Mock data for tenant's visitors
-const visitors = [
+// Mock data for tenant's visitors - mapped to match VisitorDto where possible
+const visitorsData: any[] = [
   {
     id: 1,
-    visitorName: 'Mike Johnson',
-    unit: 'B-05',
-    code: 'VST-001',
-    qrCode: '/qr-codes/vst-001.png',
-    status: 'active',
-    issuedAt: '2024-01-15T10:30:00',
-    expiresAt: '2024-01-15T18:30:00',
-    timeIn: '2024-01-15T11:00:00',
-    timeOut: null,
-    purpose: 'Family visit',
-    phone: '+263 77 123 4567',
-    email: 'mike.johnson@email.com',
-    issuedBy: 'Jane Smith'
+    name: 'John Doe',
+    visitReason: 'Social Visit',
+    checkIn: '2024-03-20T10:00:00',
+    checkOut: null,
+    status: 'Active',
+    code: '123456',
+    contactNumber: '+263 77 000 0001'
   },
   {
     id: 2,
-    visitorName: 'Sarah Lee',
-    unit: 'B-05',
-    code: 'VST-002',
-    qrCode: '/qr-codes/vst-002.png',
-    status: 'completed',
-    issuedAt: '2024-01-14T14:00:00',
-    expiresAt: '2024-01-14T22:00:00',
-    timeIn: '2024-01-14T14:30:00',
-    timeOut: '2024-01-14T17:45:00',
-    purpose: 'Delivery',
-    phone: '+263 77 234 5678',
-    email: 'sarah.lee@email.com',
-    issuedBy: 'Jane Smith'
+    name: 'Alice Smith',
+    visitReason: 'Delivery',
+    checkIn: '2024-03-19T14:30:00',
+    checkOut: '2024-03-19T14:45:00',
+    status: 'Completed',
+    code: '654321',
+    contactNumber: '+263 77 000 0002'
   },
   {
     id: 3,
-    visitorName: 'John Wilson',
-    unit: 'B-05',
-    code: 'VST-003',
-    qrCode: '/qr-codes/vst-003.png',
-    status: 'expired',
-    issuedAt: '2024-01-13T09:00:00',
-    expiresAt: '2024-01-13T17:00:00',
-    timeIn: '2024-01-13T09:15:00',
-    timeOut: null,
-    purpose: 'Maintenance',
-    phone: '+263 77 345 6789',
-    email: 'john.wilson@email.com',
-    issuedBy: 'Jane Smith'
+    name: 'Bob Johnson',
+    visitReason: 'Maintenance',
+    checkIn: '2024-03-18T09:00:00',
+    checkOut: null,
+    status: 'Expired',
+    code: '111222',
+    contactNumber: '+263 77 000 0003'
   },
   {
     id: 4,
-    visitorName: 'Alice Brown',
-    unit: 'B-05',
+    name: 'Alice Brown',
+    visitReason: 'Social Visit',
+    checkIn: '2024-03-20T16:00:00',
+    checkOut: null,
+    status: 'Active',
     code: 'VST-004',
-    qrCode: '/qr-codes/vst-004.png',
-    status: 'active',
-    issuedAt: '2024-01-15T16:00:00',
-    expiresAt: '2024-01-15T20:00:00',
-    timeIn: '2024-01-15T16:30:00',
-    timeOut: null,
-    purpose: 'Social visit',
-    phone: '+263 77 456 7890',
-    email: 'alice.brown@email.com',
-    issuedBy: 'Jane Smith'
+    contactNumber: '+263 77 456 7890'
   }
 ]
 
 const statusColors = {
-  active: 'bg-success-100 text-success-800',
-  completed: 'bg-primary-100 text-primary-800',
-  expired: 'bg-danger-100 text-danger-800',
-  pending: 'bg-warning-100 text-warning-800'
+  Active: 'bg-success-100 text-success-800',
+  Completed: 'bg-primary-100 text-primary-800',
+  Expired: 'bg-danger-100 text-danger-800',
+  Pending: 'bg-warning-100 text-warning-800'
 }
 
 const statusIcons = {
-  active: CheckCircle,
-  completed: CheckCircle,
-  expired: AlertCircle,
-  pending: Clock
+  Active: CheckCircle,
+  Completed: CheckCircle,
+  Expired: AlertCircle,
+  Pending: Clock
 }
 
 export default function TenantVisitors() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const { info, success, error: showError } = useToast()
+  const [showCodeModal, setShowCodeModal] = useState(false)
+  const [visitorName, setVisitorName] = useState('')
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null)
+
+  // Fetch real visitors from API
+  const { data: apiVisitors, loading, error, refetch } = useApi(
+    () => visitorService.getVisitors(),
+    []
+  )
+
+  // Use API data if available, otherwise fallback to mock data
+  const visitors = apiVisitors || visitorsData
 
   const filteredVisitors = visitors.filter(visitor => {
-    const matchesSearch = visitor.visitorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visitor.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visitor.code.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filterStatus === 'all' || visitor.status === filterStatus
-    return matchesSearch && matchesFilter
+    const matchesSearch = (visitor.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (visitor.visitReason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ((visitor as any).code || '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || (visitor as any).status?.toLowerCase() === filterStatus.toLowerCase()
+    return matchesSearch && matchesStatus
   })
 
   const stats = {
     total: visitors.length,
-    active: visitors.filter(v => v.status === 'active').length,
-    completed: visitors.filter(v => v.status === 'completed').length,
-    expired: visitors.filter(v => v.status === 'expired').length
+    active: visitors.filter(v => (v as any).status === 'Active').length,
+    completed: visitors.filter(v => (v as any).status === 'Completed').length,
+    expired: visitors.filter(v => (v as any).status === 'Expired').length
   }
 
   const formatTime = (dateString: string) => {
+    if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleString()
   }
 
-  const getDuration = (timeIn: string, timeOut: string | null) => {
-    if (!timeOut) return 'In progress'
-    const start = new Date(timeIn)
-    const end = new Date(timeOut)
+  const getDuration = (checkIn: string, checkOut: string | null) => {
+    if (!checkIn) return 'N/A'
+    if (!checkOut) return 'In progress'
+    const start = new Date(checkIn)
+    const end = new Date(checkOut)
     const diff = end.getTime() - start.getTime()
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -141,21 +137,40 @@ export default function TenantVisitors() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    // Show success message
+    success("Visitor code copied to clipboard.")
   }
 
-  const generateVisitorCode = () => {
-    // In a real app, this would generate a new visitor code
-    console.log('Generating new visitor code...')
+  const handleAction = (action: string, visitor?: any) => {
+    if (action === 'Generate New Code') {
+      // This will open the form to generate a new code
+      // For now, we'll simulate generation and show the code modal
+      const newCode = "VST-" + Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      setGeneratedCode(newCode)
+      setVisitorName('New Visitor') // Placeholder
+      setShowCodeModal(true)
+    } else if (action === 'Show QR Code' && visitor) {
+      setGeneratedCode(visitor.code)
+      setVisitorName(visitor.name)
+      setShowCodeModal(true)
+    } else {
+      info(`Performing ${action.toLowerCase()} action. This feature is being simulated for now.`)
+    }
+  }
+
+  const handleGenerateCode = () => {
+    // This function would typically handle form submission and API call
+    // For now, it's integrated into handleAction for simulation
+    setShowCodeModal(false) // Close the code display modal
+    success("New visitor code generated!")
   }
 
   return (
     <div className="space-y-6">
-      <Header 
-        title="Visitor Management" 
+      <Header
+        title="Visitor Management"
         subtitle="Generate and manage visitor access codes for your unit"
       />
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -216,11 +231,11 @@ export default function TenantVisitors() {
               <p className="text-sm text-gray-600">Generate visitor codes and manage access</p>
             </div>
             <div className="flex space-x-3">
-              <Button onClick={generateVisitorCode} className="w-full sm:w-auto">
+              <Button onClick={() => handleAction('Generate New Code')} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Generate New Code
               </Button>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button onClick={() => handleAction('Scan QR Code')} variant="outline" className="w-full sm:w-auto">
                 <QrCode className="h-4 w-4 mr-2" />
                 Scan QR Code
               </Button>
@@ -243,7 +258,7 @@ export default function TenantVisitors() {
                   className="pl-10"
                 />
               </div>
-              
+
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -272,16 +287,16 @@ export default function TenantVisitors() {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {visitor.visitorName}
+                          {visitor.name}
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span className="flex items-center">
                             <User className="h-4 w-4 mr-1" />
-                            {visitor.purpose}
+                            {visitor.visitReason}
                           </span>
                           <span className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
-                            {formatTime(visitor.issuedAt)}
+                            {formatTime(visitor.checkIn)}
                           </span>
                         </div>
                       </div>
@@ -310,23 +325,23 @@ export default function TenantVisitors() {
                       </div>
                       <div>
                         <span className="text-gray-600">Phone:</span>
-                        <p className="font-medium">{visitor.phone}</p>
+                        <p className="font-medium">{visitor.contactNumber}</p>
                       </div>
                       <div>
                         <span className="text-gray-600">Time In:</span>
                         <p className="font-medium">
-                          {visitor.timeIn ? formatTime(visitor.timeIn) : 'Not arrived'}
+                          {visitor.checkIn ? formatTime(visitor.checkIn) : 'Not arrived'}
                         </p>
                       </div>
                       <div>
                         <span className="text-gray-600">Duration:</span>
                         <p className="font-medium">
-                          {getDuration(visitor.timeIn, visitor.timeOut)}
+                          {getDuration(visitor.checkIn, visitor.checkOut)}
                         </p>
                       </div>
                     </div>
 
-                    {visitor.status === 'active' && (
+                    {visitor.status === 'Active' && (
                       <div className="mt-4 p-4 bg-success-50 rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
@@ -334,7 +349,7 @@ export default function TenantVisitors() {
                               Visitor is currently on the premises
                             </p>
                             <p className="text-xs text-success-600">
-                              Expected to leave by {formatTime(visitor.expiresAt)}
+                              Expected to leave by {formatTime(visitor.checkOut || '')}
                             </p>
                           </div>
                           <div className="text-right">
@@ -348,15 +363,15 @@ export default function TenantVisitors() {
 
                   <div className="mt-4 lg:mt-0 lg:ml-6">
                     <div className="flex flex-col space-y-2">
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button onClick={() => handleAction('View Details', visitor)} variant="outline" size="sm" className="w-full">
                         <Eye className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button onClick={() => handleAction('Show QR Code', visitor)} variant="outline" size="sm" className="w-full">
                         <QrCode className="h-4 w-4 mr-1" />
                         Show QR Code
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button onClick={() => handleAction('Download QR Code', visitor)} variant="outline" size="sm" className="w-full">
                         <Download className="h-4 w-4 mr-1" />
                         Download
                       </Button>
@@ -382,28 +397,27 @@ export default function TenantVisitors() {
             {filteredVisitors.slice(0, 5).map((visitor) => (
               <div key={visitor.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${
-                    visitor.status === 'active' ? 'bg-success-500' :
-                    visitor.status === 'completed' ? 'bg-primary-500' :
-                    'bg-danger-500'
-                  }`}></div>
+                  <div className={`w-2 h-2 rounded-full ${visitor.status === 'Active' ? 'bg-success-500' :
+                    visitor.status === 'Completed' ? 'bg-primary-500' :
+                      'bg-danger-500'
+                    }`}></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {visitor.visitorName} - {visitor.purpose}
+                      {visitor.name} - {visitor.visitReason}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatTime(visitor.issuedAt)} • Code: {visitor.code}
+                      {formatTime(visitor.checkIn)} • Code: {visitor.code}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
-                    {visitor.status === 'active' ? 'Currently inside' :
-                     visitor.status === 'completed' ? 'Visit completed' :
-                     'Code expired'}
+                    {visitor.status === 'Active' ? 'Currently inside' :
+                      visitor.status === 'Completed' ? 'Visit completed' :
+                        'Code expired'}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {visitor.timeIn ? formatTime(visitor.timeIn) : 'Not arrived'}
+                    {visitor.checkIn ? formatTime(visitor.checkIn) : 'Not arrived'}
                   </p>
                 </div>
               </div>
@@ -411,6 +425,45 @@ export default function TenantVisitors() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Generate Code Modal */}
+      {showCodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle>Visitor Access Code</CardTitle>
+                <CardDescription>Send this code to {visitorName}</CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setShowCodeModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <Label htmlFor="purpose">Purpose of Visit</Label>
+                  <Input id="purpose" placeholder="e.g. Social, Delivery, Maintenance" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="expiryHours">Expires In (Hours)</Label>
+                    <Input id="expiryHours" type="number" defaultValue={8} />
+                  </div>
+                </div>
+                <div className="flex space-x-3 pt-4">
+                  <Button onClick={handleGenerateCode} className="flex-1">
+                    Generate Code
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCodeModal(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
