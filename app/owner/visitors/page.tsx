@@ -106,6 +106,8 @@ export default function OwnerVisitors() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [viewVisitor, setViewVisitor] = useState<typeof visitors[0] | null>(null)
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null)
 
   const filteredVisitors = visitors.filter(visitor => {
     const matchesSearch = visitor.visitorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -139,7 +141,23 @@ export default function OwnerVisitors() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    // Show success message
+  }
+
+  const handleGenerateCode = () => {
+    const code = 'VST-' + String(visitors.length + 1).padStart(3, '0')
+    setGeneratedCode(code)
+  }
+
+  const handleViewVisitor = (v: typeof visitors[0]) => setViewVisitor(v)
+  const handleDownloadVisitor = (v: typeof visitors[0]) => {
+    const csv = `Visitor,Unit,Tenant,Code,Status,Time In,Purpose\n${v.visitorName},${v.unit},${v.tenantName},${v.code},${v.status},${v.timeIn},${v.purpose}`
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `visitor-${v.code}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -302,13 +320,13 @@ export default function OwnerVisitors() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleViewVisitor(visitor)} title="View details">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleViewVisitor(visitor)} title="View / Show QR code">
                             <QrCode className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleDownloadVisitor(visitor)} title="Download">
                             <Download className="h-4 w-4" />
                           </Button>
                         </div>
@@ -362,6 +380,48 @@ export default function OwnerVisitors() {
           </div>
         </CardContent>
       </Card>
+
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => { setShowGenerateModal(false); setGeneratedCode(null) }}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Generate Visitor Code</h3>
+            {!generatedCode ? (
+              <p className="text-sm text-gray-600 mb-4">Generate a one-time visitor access code for a tenant&apos;s guest.</p>
+            ) : (
+              <div className="p-4 bg-gray-100 rounded-lg mb-4">
+                <p className="text-sm text-gray-600">Generated code:</p>
+                <p className="text-2xl font-mono font-bold mt-1">{generatedCode}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => copyToClipboard(generatedCode)}>Copy Code</Button>
+              </div>
+            )}
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => { setShowGenerateModal(false); setGeneratedCode(null) }}>Close</Button>
+              {!generatedCode ? (
+                <Button onClick={handleGenerateCode}>Generate</Button>
+              ) : (
+                <Button onClick={() => { setGeneratedCode(null); handleGenerateCode() }}>Generate Another</Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewVisitor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setViewVisitor(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Visitor Details</h3>
+            <div className="space-y-2 text-sm">
+              <p><span className="text-gray-600">Visitor:</span> {viewVisitor.visitorName}</p>
+              <p><span className="text-gray-600">Unit:</span> {viewVisitor.unit} ({viewVisitor.tenantName})</p>
+              <p><span className="text-gray-600">Code:</span> <span className="font-mono">{viewVisitor.code}</span> <button className="text-primary-600 ml-1" onClick={() => copyToClipboard(viewVisitor.code)}>Copy</button></p>
+              <p><span className="text-gray-600">Status:</span> {viewVisitor.status}</p>
+              <p><span className="text-gray-600">Time In:</span> {formatTime(viewVisitor.timeIn)}</p>
+              <p><span className="text-gray-600">Purpose:</span> {viewVisitor.purpose}</p>
+            </div>
+            <Button variant="outline" className="mt-4" onClick={() => setViewVisitor(null)}>Close</Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

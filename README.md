@@ -104,6 +104,16 @@ yarn dev
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Credentials & Authentication
+
+**There are no hardcoded default credentials.** Users must register to obtain an account:
+
+- **Admin**: Register at `/admin/signup` or use the first account created via `/api/Authentication/register`. The **first user ever registered** is automatically assigned the Admin role.
+- **Owner**: Register at `/owner/signup` with role `Owner`. Sign in at `/owner/signin` using your **username** and password (the API uses username for login).
+- **Tenant, Service Provider, Security, Authority**: Each has its own signup page; register with the desired role.
+
+**Backend API**: The API expects username and password for login. Ensure `NEXT_PUBLIC_API_URL` points to your running FCMS.API when using real authentication.
+
 ## User Roles & Permissions
 
 ### Admin/Committee

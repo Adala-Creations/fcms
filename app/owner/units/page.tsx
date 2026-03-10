@@ -98,6 +98,7 @@ const maintenanceColors = {
 export default function OwnerUnits() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [detailUnit, setDetailUnit] = useState<typeof units[0] | null>(null)
 
   const filteredUnits = units.filter(unit => {
     const matchesSearch = unit.unitNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -303,12 +304,12 @@ export default function OwnerUnits() {
                 {/* Actions */}
                 <div className="pt-4 border-t">
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setDetailUnit(unit)}>
                       <Eye className="h-4 w-4 mr-1" />
                       View Details
                     </Button>
                     {unit.tenant && (
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => setDetailUnit(unit)}>
                         <Users className="h-4 w-4 mr-1" />
                         Manage Tenant
                       </Button>
@@ -320,6 +321,33 @@ export default function OwnerUnits() {
           </Card>
         ))}
       </div>
+
+      {detailUnit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setDetailUnit(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Unit {detailUnit.unitNumber} – Details</h3>
+            <div className="space-y-3 text-sm">
+              <p><span className="text-gray-600">Block:</span> {detailUnit.block} • Size: {detailUnit.size}</p>
+              <p><span className="text-gray-600">Status:</span> {detailUnit.status}</p>
+              <p><span className="text-gray-600">Total Rent:</span> ${detailUnit.totalRent}/month</p>
+              {detailUnit.tenant ? (
+                <>
+                  <p><span className="text-gray-600">Tenant:</span> {detailUnit.tenant.name}</p>
+                  <p><span className="text-gray-600">Phone:</span> {detailUnit.tenant.phone}</p>
+                  <p><span className="text-gray-600">Email:</span> {detailUnit.tenant.email}</p>
+                  <p><span className="text-gray-600">Lease:</span> {new Date(detailUnit.tenant.leaseStart).toLocaleDateString()} – {new Date(detailUnit.tenant.leaseEnd).toLocaleDateString()}</p>
+                </>
+              ) : (
+                <p className="text-gray-500">No tenant – unit is vacant</p>
+              )}
+              <p><span className="text-gray-600">Maintenance:</span> {detailUnit.maintenance}</p>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button variant="outline" onClick={() => setDetailUnit(null)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
 
 // Mock data for service requests
@@ -130,6 +131,8 @@ export default function OwnerRequests() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [viewRequest, setViewRequest] = useState<typeof serviceRequests[0] | null>(null)
+  const [createForm, setCreateForm] = useState({ unit: '', category: 'Plumbing', title: '', description: '', priority: 'Medium' })
 
   const filteredRequests = serviceRequests.filter(request => {
     const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,6 +156,13 @@ export default function OwnerRequests() {
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString()
+  }
+
+  const handleCreateRequest = () => {
+    if (createForm.unit && createForm.title) {
+      setShowCreateModal(false)
+      setCreateForm({ unit: '', category: 'Plumbing', title: '', description: '', priority: 'Medium' })
+    }
   }
 
   const getDaysAgo = (dateString: string) => {
@@ -369,18 +379,18 @@ export default function OwnerRequests() {
 
                   <div className="mt-4 lg:mt-0 lg:ml-6">
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => setViewRequest(request)}>
                         <Eye className="h-4 w-4 mr-1" />
                         View
                       </Button>
                       {request.status === 'pending' && (
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => setViewRequest(request)}>
                           <Wrench className="h-4 w-4 mr-1" />
                           Assign
                         </Button>
                       )}
                       {request.status === 'in-progress' && (
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => setViewRequest(request)}>
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Complete
                         </Button>
@@ -393,6 +403,63 @@ export default function OwnerRequests() {
           )
         })}
       </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Create Service Request</h3>
+            <div className="space-y-4">
+              <div>
+                <Label>Unit</Label>
+                <Input value={createForm.unit} onChange={e => setCreateForm(f => ({ ...f, unit: e.target.value }))} placeholder="e.g. A-01" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <select value={createForm.category} onChange={e => setCreateForm(f => ({ ...f, category: e.target.value }))} className="w-full px-3 py-2 border rounded-md">
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label>Title</Label>
+                <Input value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="Brief description" />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Details (optional)" />
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <select value={createForm.priority} onChange={e => setCreateForm(f => ({ ...f, priority: e.target.value }))} className="w-full px-3 py-2 border rounded-md">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+              <Button onClick={handleCreateRequest} disabled={!createForm.unit || !createForm.title}>Create Request</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setViewRequest(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">{viewRequest.title}</h3>
+            <div className="space-y-2 text-sm">
+              <p><span className="text-gray-600">Unit:</span> {viewRequest.unit} • {viewRequest.tenantName}</p>
+              <p><span className="text-gray-600">Category:</span> {viewRequest.category}</p>
+              <p><span className="text-gray-600">Priority:</span> {viewRequest.priority}</p>
+              <p><span className="text-gray-600">Status:</span> {viewRequest.status}</p>
+              <p><span className="text-gray-600">Description:</span> {viewRequest.description}</p>
+              {viewRequest.assignedTo && <p><span className="text-gray-600">Assigned to:</span> {viewRequest.assignedTo}</p>}
+            </div>
+            <Button variant="outline" className="mt-4" onClick={() => setViewRequest(null)}>Close</Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

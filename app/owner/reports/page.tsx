@@ -82,8 +82,24 @@ export default function OwnerReports() {
   }
 
   const handleDownload = (reportType: string) => {
-    // In a real app, this would generate and download the report
-    console.log(`Downloading ${reportType} report...`)
+    const headers: Record<string, string> = {
+      'rental-income': 'Rental Income Report',
+      'expenses': 'Expenses Report',
+      'maintenance': 'Maintenance Report',
+      'tenant-analysis': 'Tenant Analysis Report'
+    }
+    const content = `FCMS ${headers[reportType] || reportType}\nPeriod: ${selectedPeriod}\nGenerated: ${new Date().toLocaleString()}\n\n` +
+      (reportType === 'rental-income' ? monthlyRent.map(d => `${d.month}: $${d.collected}`).join('\n') :
+       reportType === 'expenses' ? expenseBreakdown.map(e => `${e.category}: $${e.amount} (${e.percentage}%)`).join('\n') :
+       reportType === 'maintenance' ? serviceRequests.map(s => `${s.category}: ${s.count} requests, avg $${s.avgCost}`).join('\n') :
+       unitPerformance.map(u => `${u.unit}: Rent $${u.rent}, Occupancy ${u.occupancy}%, Maintenance ${u.maintenance}`).join('\n'))
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${reportType}-${selectedPeriod}-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (

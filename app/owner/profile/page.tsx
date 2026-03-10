@@ -54,11 +54,12 @@ export default function OwnerProfilePage() {
                   <div className="h-24 w-24 rounded-full bg-success-100 flex items-center justify-center">
                     <User className="h-12 w-12 text-success-600" />
                   </div>
-                  <button className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border">
+                  <label className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border cursor-pointer">
                     <Camera className="h-4 w-4 text-gray-600" />
-                  </button>
+                    <input id="profile-photo-input" type="file" accept="image/*" className="hidden" onChange={() => alert('Photo upload simulated. Backend integration required.')} />
+                  </label>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => document.getElementById('profile-photo-input')?.click()}>
                   Change Photo
                 </Button>
               </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { 
   Building2, 
   Users, 
@@ -106,6 +107,7 @@ const upcomingLeaseRenewals = [
 ]
 
 export default function OwnerDashboard() {
+  const router = useRouter()
   return (
     <div>
       <Header 
@@ -163,19 +165,19 @@ export default function OwnerDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Button className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button onClick={() => router.push('/owner/units')} className="h-20 flex flex-col items-center justify-center space-y-2">
             <Building2 className="h-6 w-6" />
             <span>Manage Units</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button variant="outline" onClick={() => router.push('/owner/units')} className="h-20 flex flex-col items-center justify-center space-y-2">
             <Users className="h-6 w-6" />
             <span>View Tenants</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button variant="outline" onClick={() => router.push('/owner/payments')} className="h-20 flex flex-col items-center justify-center space-y-2">
             <DollarSign className="h-6 w-6" />
             <span>Payment History</span>
           </Button>
-          <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+          <Button variant="outline" onClick={() => router.push('/owner/units')} className="h-20 flex flex-col items-center justify-center space-y-2">
             <Calendar className="h-6 w-6" />
             <span>Lease Management</span>
           </Button>
@@ -309,7 +311,7 @@ export default function OwnerDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-warning-600">{lease.daysRemaining} days</p>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={() => router.push('/owner/units')}>
                         Renew Lease
                       </Button>
                     </div>
