@@ -101,7 +101,7 @@ export async function login(username: string, password: string): Promise<LoginRe
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Login failed' }))
-    throw new Error(error.message || 'Login failed')
+    throw new Error(error.error || error.message || 'Login failed')
   }
 
   const data = await response.json()
@@ -181,10 +181,12 @@ export async function register(username: string, email: string, password: string
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Registration failed' }))
-    // Extract detailed error messages from backend (validation errors, password requirements, etc.)
+    // Extract detailed error messages from backend (API uses "error" property)
     let errorMessage = 'Registration failed'
     
-    if (error.message) {
+    if (error.error) {
+      errorMessage = error.error
+    } else if (error.message) {
       errorMessage = error.message
     } else if (error.errors) {
       // Handle ASP.NET validation errors format
@@ -208,10 +210,14 @@ export async function register(username: string, email: string, password: string
 
   const data = await response.json()
   
-    // Debug: Log the actual response to see what the backend returns
-    console.log('Register response:', data)
+  // Backend register returns { message } only - no token. Log in to get token.
+  const token = data.token || data.accessToken || data.access_token
+  if (!token) {
+    const loginResponse = await login(username, password)
+    return loginResponse
+  }
   
-  // Store token in localStorage
+  // Store token in localStorage (if backend ever returns token directly)
   if (typeof window !== 'undefined') {
       // Try different possible token property names
       const token = data.token || data.accessToken || data.jwtToken || data.jwt || data.access_token

@@ -23,8 +23,6 @@ export default function AdminSignIn() {
     rememberMe: false
   })
 
-  const SECRET_CODE = '$3cR3Tc0DE_Adin1StrAt10N'
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -186,10 +184,10 @@ export default function AdminSignIn() {
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
             <Link
-              href="/admin/account_request"
+              href="/admin/signup"
               className="font-medium text-primary-600 hover:text-primary-500"
             >
-              Request access here
+              Sign up here
             </Link>
           </p>
         </div>

@@ -133,20 +133,26 @@ export default function AdminProfilePage() {
     }
   }
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.showToast('New passwords do not match', 'error')
       return
     }
-    // TODO: Implement password change API call
-    console.log('Password updated:', passwordData)
-    toast.showToast('Password updated successfully', 'success')
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-    setShowPasswordModal(false)
-    setShowCurrentPassword(false)
-    setShowNewPassword(false)
-    setShowConfirmPassword(false)
+    try {
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      })
+      toast.showToast('Password updated successfully', 'success')
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setShowPasswordModal(false)
+      setShowCurrentPassword(false)
+      setShowNewPassword(false)
+      setShowConfirmPassword(false)
+    } catch (error: any) {
+      toast.showToast(error.message || 'Failed to update password', 'error')
+    }
   }
 
   const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {

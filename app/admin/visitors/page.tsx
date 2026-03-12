@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import Header from '@/components/layout/header'
 import { formatDate, formatDateTime, getStatusColor } from '@/lib/utils'
 import { useApi } from '@/lib/hooks/useApi'
+import { useToast } from '@/lib/hooks/useToast'
 import { visitorService } from '@/lib/services/api.service'
 import type { VisitorDto } from '@/lib/types/api'
 
@@ -19,6 +20,9 @@ export default function VisitorsPage() {
   const [purposeFilter, setPurposeFilter] = useState('all')
   const [showQRModal, setShowQRModal] = useState(false)
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorDto | null>(null)
+  const [visitorForm, setVisitorForm] = useState({ name: '', purpose: 'Social visit', contact: '', unitId: 1 })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { success, error: showError } = useToast()
 
   // Fetch visitors from backend
   const { data: visitors, loading, error, refetch } = useApi(
@@ -58,7 +62,39 @@ export default function VisitorsPage() {
 
   const handleGenerateQR = (visitor: VisitorDto) => {
     setSelectedVisitor(visitor)
+    setVisitorForm({ name: '', purpose: 'Social visit', contact: '', unitId: 1 })
     setShowQRModal(true)
+  }
+
+  const handleCreateVisitor = async () => {
+    if (!visitorForm.name.trim()) {
+      showError('Please enter visitor name.')
+      return
+    }
+    const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+    if (!userId) {
+      showError('You must be logged in to create a visitor.')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await visitorService.createVisitor({
+        name: visitorForm.name.trim(),
+        visitReason: visitorForm.purpose,
+        contactNumber: visitorForm.contact.trim() || undefined,
+        checkIn: new Date().toISOString(),
+        unitId: visitorForm.unitId,
+        createdBy: userId
+      })
+      success('Visitor created successfully!')
+      setShowQRModal(false)
+      setVisitorForm({ name: '', purpose: 'Social visit', contact: '', unitId: 1 })
+      refetch()
+    } catch (err: any) {
+      showError(err.message || 'Failed to create visitor')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -113,9 +149,9 @@ export default function VisitorsPage() {
                 <CardTitle>Visitor Logs</CardTitle>
                 <CardDescription>Track all visitor access and activities</CardDescription>
               </div>
-              <Button onClick={() => setShowQRModal(true)}>
+              <Button onClick={() => { setVisitorForm({ name: '', purpose: 'Social visit', contact: '', unitId: 1 }); setShowQRModal(true) }}>
                 <Plus className="h-4 w-4 mr-2" />
-                Generate QR Code
+                Add Visitor
               </Button>
             </div>
           </CardHeader>
@@ -173,14 +209,10 @@ export default function VisitorsPage() {
                 <svg className="h-8 w-8 text-yellow-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                <h2 className="text-2xl font-bold text-yellow-800">🚧 Under Construction 🚧</h2>
+                <h2 className="text-2xl font-bold text-yellow-800">Failed to load visitors</h2>
               </div>
-              <p className="text-lg text-yellow-700 font-medium">
-                This feature is currently being built
-              </p>
-              <p className="text-sm text-yellow-600 max-w-md">
-                The Visitor Management system will be available soon. Thank you for your patience!
-              </p>
+              <p className="text-sm text-yellow-700 max-w-md">{String(error)}</p>
+              <Button variant="outline" onClick={refetch}>Retry</Button>
             </div>
           </div>
         )}
@@ -276,46 +308,48 @@ export default function VisitorsPage() {
         )}
       </div>
 
-      {/* QR Code Modal */}
+      {/* Create Visitor Modal */}
       {showQRModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-4">Generate Visitor QR Code</h3>
+              <h3 className="text-lg font-semibold mb-4">Create Visitor</h3>
+              <p className="text-sm text-gray-500 mb-4">Add a visitor to the log. Visitors created by tenants will also appear here.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Visitor Name</label>
-                  <Input placeholder="Enter visitor name" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Resident</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>Select resident</option>
-                    <option>John Doe (A-12)</option>
-                    <option>Jane Smith (B-05)</option>
-                    <option>Bob Wilson (C-08)</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Visitor Name *</label>
+                  <Input
+                    placeholder="Enter visitor name"
+                    value={visitorForm.name}
+                    onChange={e => setVisitorForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option>Social visit</option>
-                    <option>Delivery</option>
-                    <option>Maintenance</option>
-                    <option>Family visit</option>
-                    <option>Business</option>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    value={visitorForm.purpose}
+                    onChange={e => setVisitorForm(prev => ({ ...prev, purpose: e.target.value }))}
+                  >
+                    {purposeOptions.filter(p => p !== 'all').map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                  <Input placeholder="Enter visitor phone number" />
+                  <Input
+                    placeholder="Enter visitor phone number"
+                    value={visitorForm.contact}
+                    onChange={e => setVisitorForm(prev => ({ ...prev, contact: e.target.value }))}
+                  />
                 </div>
               </div>
               <div className="flex justify-end space-x-2 mt-6">
-                <Button variant="outline" onClick={() => setShowQRModal(false)}>
+                <Button variant="outline" onClick={() => setShowQRModal(false)} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button onClick={() => setShowQRModal(false)}>
-                  Generate QR Code
+                <Button onClick={handleCreateVisitor} disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Visitor'}
                 </Button>
               </div>
             </div>

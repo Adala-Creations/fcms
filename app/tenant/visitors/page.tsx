@@ -93,7 +93,10 @@ export default function TenantVisitors() {
   const { info, success, error: showError } = useToast()
   const [showCodeModal, setShowCodeModal] = useState(false)
   const [visitorName, setVisitorName] = useState('')
+  const [visitorPurpose, setVisitorPurpose] = useState('')
+  const [visitorContact, setVisitorContact] = useState('')
   const [generatedCode, setGeneratedCode] = useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // Fetch real visitors from API
   const { data: apiVisitors, loading, error, refetch } = useApi(
@@ -142,14 +145,13 @@ export default function TenantVisitors() {
 
   const handleAction = (action: string, visitor?: any) => {
     if (action === 'Generate New Code') {
-      // This will open the form to generate a new code
-      // For now, we'll simulate generation and show the code modal
-      const newCode = "VST-" + Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-      setGeneratedCode(newCode)
-      setVisitorName('New Visitor') // Placeholder
+      setVisitorName('')
+      setVisitorPurpose('')
+      setVisitorContact('')
+      setGeneratedCode(null)
       setShowCodeModal(true)
     } else if (action === 'Show QR Code' && visitor) {
-      setGeneratedCode(visitor.code)
+      setGeneratedCode((visitor as any).code || `VST-${visitor.id}`)
       setVisitorName(visitor.name)
       setShowCodeModal(true)
     } else {
@@ -157,11 +159,34 @@ export default function TenantVisitors() {
     }
   }
 
-  const handleGenerateCode = () => {
-    // This function would typically handle form submission and API call
-    // For now, it's integrated into handleAction for simulation
-    setShowCodeModal(false) // Close the code display modal
-    success("New visitor code generated!")
+  const handleGenerateCode = async () => {
+    if (!visitorName.trim()) {
+      showError('Please enter the visitor\'s name.')
+      return
+    }
+    const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+    if (!userId) {
+      showError('You must be logged in to generate a visitor code.')
+      return
+    }
+    setIsGenerating(true)
+    try {
+      const visitor = await visitorService.createVisitor({
+        name: visitorName.trim(),
+        contactNumber: visitorContact.trim() || undefined,
+        visitReason: visitorPurpose.trim() || 'Visit',
+        checkIn: new Date().toISOString(),
+        unitId: 1,
+        createdBy: userId
+      })
+      setGeneratedCode(`VST-${visitor.id}`)
+      success('Visitor code generated! Share with your visitor.')
+      refetch()
+    } catch (err: any) {
+      showError(`Failed to create visitor: ${err.message}`)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -433,32 +458,42 @@ export default function TenantVisitors() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
                 <CardTitle>Visitor Access Code</CardTitle>
-                <CardDescription>Send this code to {visitorName}</CardDescription>
+                <CardDescription>{generatedCode ? `Send code ${generatedCode} to ${visitorName}` : 'Enter visitor details to generate a code'}</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setShowCodeModal(false)}>
+              <Button variant="ghost" size="icon" onClick={() => { setShowCodeModal(false); setGeneratedCode(null) }}>
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4 pt-4">
-                <div>
-                  <Label htmlFor="purpose">Purpose of Visit</Label>
-                  <Input id="purpose" placeholder="e.g. Social, Delivery, Maintenance" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="expiryHours">Expires In (Hours)</Label>
-                    <Input id="expiryHours" type="number" defaultValue={8} />
+                {generatedCode ? (
+                  <div className="space-y-2">
+                    <p className="text-lg font-mono font-bold text-center py-4 bg-primary-50 rounded">{generatedCode}</p>
+                    <Button variant="outline" className="w-full" onClick={() => copyToClipboard(generatedCode!)}>Copy Code</Button>
+                    <Button variant="outline" className="w-full" onClick={() => { setShowCodeModal(false); setGeneratedCode(null) }}>Done</Button>
                   </div>
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <Button onClick={handleGenerateCode} className="flex-1">
-                    Generate Code
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowCodeModal(false)}>
-                    Cancel
-                  </Button>
-                </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label htmlFor="visitorName">Visitor Name *</Label>
+                      <Input id="visitorName" placeholder="e.g. John Doe" value={visitorName} onChange={e => setVisitorName(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="purpose">Purpose of Visit</Label>
+                      <Input id="purpose" placeholder="e.g. Social, Delivery, Maintenance" value={visitorPurpose} onChange={e => setVisitorPurpose(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="visitorContact">Contact Number</Label>
+                      <Input id="visitorContact" placeholder="e.g. +263 77 123 4567" value={visitorContact} onChange={e => setVisitorContact(e.target.value)} />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <Button onClick={handleGenerateCode} className="flex-1" disabled={isGenerating}>
+                        {isGenerating ? 'Generating...' : 'Generate Code'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowCodeModal(false)}>Cancel</Button>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

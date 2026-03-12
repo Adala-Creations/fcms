@@ -25,8 +25,8 @@ import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
 import { useToast } from '@/lib/hooks/useToast'
 import { useApi } from '@/lib/hooks/useApi'
-import { serviceRequestService } from '@/lib/services/api.service'
-import type { ServiceRequestDto } from '@/lib/types/api'
+import { serviceRequestService, tenantService } from '@/lib/services/api.service'
+import type { ServiceRequestDto, TenantDto } from '@/lib/types/api'
 
 // Mock data for service requests - mapped to match ServiceRequestDto where possible
 const serviceRequestsData: any[] = [
@@ -93,7 +93,17 @@ export default function TenantRequests() {
     []
   )
 
+  // Fetch tenants to resolve the current tenant's unit
+  const { data: tenants } = useApi<TenantDto[]>(
+    () => tenantService.getTenants(),
+    []
+  )
+
   const handleAction = (title: string) => {
+    if (title === 'Report Issue') {
+      setShowCreateModal(true)
+      return
+    }
     info(`Action Triggered: ${title}. Real functionality coming soon.`)
   }
 
@@ -104,14 +114,28 @@ export default function TenantRequests() {
 
   const handleSubmitRequest = async () => {
     try {
+      const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+      if (!userId) {
+        showError('You must be logged in to submit a request.')
+        return
+      }
+
+      const tenant = tenants?.find(t => t.userId === userId)
+      if (!tenant) {
+        showError('Could not find your tenant record. Please contact admin.')
+        return
+      }
+
       await serviceRequestService.createServiceRequest({
-        ...createForm,
-        unit: 'B-05', // Mock unit for now
-        requestedAt: new Date().toISOString(),
-        status: 'pending'
-      } as any)
+        unitId: tenant.unitId,
+        requestedBy: userId,
+        description: `${createForm.category}: ${createForm.title} - ${createForm.description}`,
+        status: 'pending',
+        requestDate: new Date().toISOString()
+      })
 
       setShowCreateModal(false)
+      setCreateForm({ category: 'Plumbing', title: '', description: '', priority: 'Medium' })
       success("Service request submitted successfully!")
       refetch()
     } catch (err: any) {

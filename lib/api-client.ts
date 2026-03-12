@@ -112,7 +112,7 @@ export default async function apiFetch<T = any>(
     const error = await response.json().catch(() => ({
       message: `HTTP error! status: ${response.status}`,
     }))
-    throw new Error(error.message || `HTTP error! status: ${response.status}`)
+    throw new Error(error.error || error.message || `HTTP error! status: ${response.status}`)
   }
 
   // Handle empty responses (like 204 No Content for DELETE)

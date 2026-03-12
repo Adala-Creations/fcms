@@ -44,6 +44,13 @@ export const authService = {
     })
   },
 
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    return apiFetch('/api/Authentication/change-password', {
+      method: 'POST',
+      json: data
+    })
+  },
+
   async getCurrentUser(): Promise<UserDto> {
     // This will need the actual user ID from the token or session
     // For now, this is a placeholder - you'll need to decode the JWT or get user ID
@@ -418,5 +425,28 @@ export const serviceProviderService = {
 
   async deleteProvider(id: number): Promise<void> {
     return apiFetch<void>(`/api/ServiseProviders/${id}`, { method: 'DELETE' })
+  }
+}
+
+// Provider Receipts
+export const providerReceiptService = {
+  async getReceipts(): Promise<ProviderReceiptDto[]> {
+    return apiFetch<ProviderReceiptDto[]>('/api/ProviderReceipts', { method: 'GET' })
+  },
+
+  async getReceiptById(id: number): Promise<ProviderReceiptDto> {
+    return apiFetch<ProviderReceiptDto>(`/api/ProviderReceipts/${id}`, { method: 'GET' })
+  },
+
+  async createReceipt(data: Partial<ProviderReceiptDto>): Promise<ProviderReceiptDto> {
+    const { id, ...createData } = data as ProviderReceiptDto
+    return apiFetch<ProviderReceiptDto>('/api/ProviderReceipts', {
+      method: 'POST',
+      json: createData
+    })
+  },
+
+  async deleteReceipt(id: number): Promise<void> {
+    return apiFetch<void>(`/api/ProviderReceipts/${id}`, { method: 'DELETE' })
   }
 }

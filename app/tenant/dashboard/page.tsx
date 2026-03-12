@@ -144,7 +144,7 @@ export default function TenantDashboard() {
           <Button
             variant="outline"
             className="h-20 flex flex-col items-center justify-center space-y-2"
-            onClick={() => handleAction('Report Issue')}
+            onClick={() => router.push('/tenant/requests')}
           >
             <AlertCircle className="h-6 w-6" />
             <span>Report Issue</span>

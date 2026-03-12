@@ -204,7 +204,14 @@ export default function AdminProviders() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await serviceProviderService.createProvider(formData)
+      // userId is required by backend - use current admin's ID if not provided
+      const userId = formData.userId?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('userId') : null)
+      if (!userId) {
+        showToast('User ID is required. Please log in again or enter a user ID.', 'error')
+        setIsSubmitting(false)
+        return
+      }
+      await serviceProviderService.createProvider({ ...formData, userId })
       showToast('Provider added successfully', 'success')
       setShowAddModal(false)
       refetch()
@@ -366,14 +373,10 @@ export default function AdminProviders() {
               <svg className="h-8 w-8 text-yellow-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
               </svg>
-              <h2 className="text-2xl font-bold text-yellow-800">🚧 Under Construction 🚧</h2>
+              <h2 className="text-2xl font-bold text-yellow-800">Failed to load service providers</h2>
             </div>
-            <p className="text-lg text-yellow-700 font-medium">
-              This feature is currently being built
-            </p>
-            <p className="text-sm text-yellow-600 max-w-md">
-              The Service Providers system will be available soon. Thank you for your patience!
-            </p>
+            <p className="text-sm text-yellow-700 max-w-md">{String(error)}</p>
+            <Button variant="outline" onClick={refetch}>Retry</Button>
           </div>
         </div>
       )}
@@ -480,8 +483,9 @@ export default function AdminProviders() {
                 <Input
                   value={formData.userId}
                   onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                  placeholder="Enter user ID (optional)"
+                  placeholder="Leave blank to use your account"
                 />
+                <p className="text-xs text-gray-500 mt-1">Optional. Uses your account if blank.</p>
               </div>
               <div className="flex justify-end space-x-2 mt-6">
                 <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} disabled={isSubmitting}>

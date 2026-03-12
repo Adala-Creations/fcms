@@ -145,8 +145,48 @@ export default function AdminReports() {
   const error = paymentsError || expensesError || unitsError || visitorsError
 
   const handleDownload = (reportType: string) => {
-    // In a real app, this would generate and download the report
-    console.log(`Downloading ${reportType} report...`)
+    const headerMap: Record<string, string> = {
+      financial: 'Financial Report',
+      occupancy: 'Occupancy Report',
+      visitors: 'Visitor Report',
+      compliance: 'Compliance Report',
+    }
+
+    const lines: string[] = []
+    lines.push(`FCMS - ${headerMap[reportType] || reportType}`)
+    lines.push(`Period: ${selectedPeriod}`)
+    lines.push(`Generated: ${new Date().toLocaleString()}`)
+    lines.push('')
+
+    if (reportType === 'financial') {
+      lines.push(`Total Revenue: ${stats.totalRevenue}`)
+      lines.push(`Total Expenses: ${stats.totalExpenses}`)
+      lines.push(`Net Income: ${stats.netIncome}`)
+      lines.push('')
+      lines.push('Monthly revenue/expenses:')
+      monthlyRevenue.forEach((m: any) => lines.push(`${m.month}: revenue=${m.revenue}, expenses=${m.expenses}`))
+      lines.push('')
+      lines.push('Payment methods:')
+      paymentStatusData.forEach((p: any) => lines.push(`${p.name}: ${p.value}`))
+    } else if (reportType === 'occupancy') {
+      lines.push(`Total Units: ${stats.totalUnits}`)
+      lines.push(`Occupied Units: ${stats.occupiedUnits}`)
+      lines.push(`Occupancy Rate: ${stats.occupancyRate}%`)
+    } else if (reportType === 'visitors') {
+      lines.push('Visitors by day:')
+      visitorStats.forEach((d: any) => lines.push(`${d.day}: ${d.visitors}`))
+    } else if (reportType === 'compliance') {
+      lines.push('Expense categories:')
+      expenseCategories.forEach((c: any) => lines.push(`${c.category}: ${c.amount} (${c.percentage}%)`))
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${reportType}-${selectedPeriod}-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading) {
@@ -178,10 +218,12 @@ export default function AdminReports() {
         <Card>
           <CardContent className="p-12">
             <div className="text-center space-y-4">
-              <div className="bg-warning-50 border-2 border-warning-200 rounded-lg p-8">
-                <h3 className="text-2xl font-bold text-warning-800 mb-2">🚧 Under Construction 🚧</h3>
-                <p className="text-warning-700 mb-4">Reports data is currently being populated</p>
-                <p className="text-sm text-warning-600">Some backend endpoints may not be available yet</p>
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8">
+                <h3 className="text-2xl font-bold text-red-800 mb-2">Failed to load reports data</h3>
+                <p className="text-red-700 mb-4">{error}</p>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Retry
+                </Button>
               </div>
             </div>
           </CardContent>

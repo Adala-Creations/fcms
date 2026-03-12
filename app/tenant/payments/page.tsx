@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useToast } from '@/lib/hooks/useToast'
+import { paymentService } from '@/lib/services/api.service'
 
 // Mock data
 const paymentHistoryData = [
@@ -100,7 +101,8 @@ export default function TenantPaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [selectedMethod, setSelectedMethod] = useState('')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const { info, success } = useToast()
+  const [submitting, setSubmitting] = useState(false)
+  const { info, success, error: showError } = useToast()
 
   const totalDue = upcomingPaymentsData.reduce((sum, payment) => sum + payment.amount, 0)
   const totalPaid = paymentHistoryData.reduce((sum, payment) => sum + payment.amount, 0)
@@ -115,9 +117,29 @@ export default function TenantPaymentsPage() {
     setShowPaymentModal(true)
   }
 
-  const handleConfirmPayment = () => {
-    setShowPaymentModal(false)
-    success(`Payment for ${selectedPayment?.type} submitted successfully!`)
+  const handleConfirmPayment = async () => {
+    if (!selectedPayment || !selectedMethod) {
+      info('Please select a payment method.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await paymentService.createPayment({
+        unitId: 1,
+        amount: selectedPayment.amount,
+        paymentDate: new Date().toISOString(),
+        method: selectedMethod,
+        reference: `PAY-${Date.now()}`
+      })
+      setShowPaymentModal(false)
+      setSelectedPayment(null)
+      setSelectedMethod('')
+      success(`Payment for ${selectedPayment?.type} submitted successfully!`)
+    } catch (err: any) {
+      showError(`Payment failed: ${err.message}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleAction = (title: string) => {
@@ -324,7 +346,7 @@ export default function TenantPaymentsPage() {
                 </Button>
                 <Button
                   onClick={handleConfirmPayment}
-                  disabled={!selectedMethod}
+                  disabled={submitting || !selectedMethod}
                 >
                   Confirm Payment
                 </Button>

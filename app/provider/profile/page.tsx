@@ -1,29 +1,97 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { User, Mail, Phone, Wrench, Save, Camera } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Header from '@/components/layout/header'
+import { useToast } from '@/lib/hooks/useToast'
+import { serviceProviderService, userService } from '@/lib/services/api.service'
+import type { ServiseProviderDto, UserDto } from '@/lib/types/api'
 
 export default function ProviderProfilePage() {
+  const { success, error: showError } = useToast()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const [user, setUser] = useState<UserDto | null>(null)
+  const [provider, setProvider] = useState<ServiseProviderDto | null>(null)
+  const [loading, setLoading] = useState(true)
+
   const [formData, setFormData] = useState({
-    firstName: 'Mike',
-    lastName: 'Johnson',
-    email: 'provider@fcms.com',
-    phone: '+263 77 123 4567',
-    businessName: 'ABC Services Ltd',
-    serviceCategory: 'Plumbing',
-    licenseNumber: 'REG123456789',
-    experience: '5 years'
+    userName: '',
+    email: '',
+    phoneNumber: '',
+    businessName: '',
+    serviceCategory: '',
+    contactNumber: ''
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+        if (!userId) {
+          setLoading(false)
+          return
+        }
+
+        const [userDto, providers] = await Promise.all([
+          userService.getUserById(userId),
+          serviceProviderService.getProviders()
+        ])
+
+        const providerDto = providers.find(p => p.userId === userId) || null
+
+        setUser(userDto)
+        setProvider(providerDto || null)
+
+        setFormData({
+          userName: userDto.userName || '',
+          email: userDto.email || '',
+          phoneNumber: userDto.phoneNumber || '',
+          businessName: providerDto?.companyName || '',
+          serviceCategory: providerDto?.serviceType || '',
+          contactNumber: providerDto?.contactNumber || ''
+        })
+      } catch (err: any) {
+        showError(err.message || 'Failed to load profile')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [showError])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Profile updated:', formData)
-    alert('Profile updated successfully!')
+    if (!user) return
+
+    try {
+      // Update user core details
+      await userService.updateUser(user.id || '', {
+        userName: formData.userName,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber
+      })
+
+      // Update provider business details if provider exists
+      if (provider) {
+        await serviceProviderService.updateProvider(provider.id, {
+          id: provider.id,
+          userId: provider.userId,
+          companyName: formData.businessName,
+          serviceType: formData.serviceCategory,
+          contactNumber: formData.contactNumber
+        })
+      }
+
+      success('Profile updated successfully')
+    } catch (err: any) {
+      showError(err.message || 'Failed to update profile')
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -32,6 +100,22 @@ export default function ProviderProfilePage() {
       ...prev,
       [name]: value
     }))
+  }
+
+  const handleChangePhotoClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <Header 
+          title="Profile Settings" 
+          subtitle="Manage your service provider profile"
+        />
+        <div className="p-4 lg:p-6 text-sm text-gray-500">Loading profile...</div>
+      </div>
+    )
   }
 
   return (
@@ -55,11 +139,21 @@ export default function ProviderProfilePage() {
                   <div className="h-24 w-24 rounded-full bg-secondary-100 flex items-center justify-center">
                     <User className="h-12 w-12 text-secondary-600" />
                   </div>
-                  <button className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border">
+                  <button
+                    type="button"
+                    className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow-md border"
+                    onClick={handleChangePhotoClick}
+                  >
                     <Camera className="h-4 w-4 text-gray-600" />
                   </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                  />
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" type="button" onClick={handleChangePhotoClick}>
                   Change Photo
                 </Button>
               </div>
@@ -76,20 +170,11 @@ export default function ProviderProfilePage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="userName">Username</Label>
                     <Input
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
+                      id="userName"
+                      name="userName"
+                      value={formData.userName}
                       onChange={handleInputChange}
                     />
                   </div>
@@ -110,8 +195,8 @@ export default function ProviderProfilePage() {
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
-                    name="phone"
-                    value={formData.phone}
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -161,20 +246,11 @@ export default function ProviderProfilePage() {
                 </select>
               </div>
               <div>
-                <Label htmlFor="licenseNumber">License Number</Label>
+                <Label htmlFor="contactNumber">Business Contact Number</Label>
                 <Input
-                  id="licenseNumber"
-                  name="licenseNumber"
-                  value={formData.licenseNumber}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div>
-                <Label htmlFor="experience">Experience</Label>
-                <Input
-                  id="experience"
-                  name="experience"
-                  value={formData.experience}
+                  id="contactNumber"
+                  name="contactNumber"
+                  value={formData.contactNumber}
                   onChange={handleInputChange}
                 />
               </div>

@@ -187,10 +187,12 @@ export default function PaymentsPage() {
           <Card>
             <CardContent className="p-12">
               <div className="text-center space-y-4">
-                <div className="bg-warning-50 border-2 border-warning-200 rounded-lg p-8">
-                  <h3 className="text-2xl font-bold text-warning-800 mb-2">🚧 Under Construction 🚧</h3>
-                  <p className="text-warning-700 mb-4">Payment data is currently being populated</p>
-                  <p className="text-sm text-warning-600">The backend endpoint may not be available yet</p>
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8">
+                  <h3 className="text-2xl font-bold text-red-800 mb-2">Failed to load payments</h3>
+                  <p className="text-red-700 mb-4">{error}</p>
+                  <Button variant="outline" onClick={refetch}>
+                    Retry
+                  </Button>
                 </div>
               </div>
             </CardContent>

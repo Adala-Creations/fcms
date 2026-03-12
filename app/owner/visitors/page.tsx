@@ -144,7 +144,9 @@ export default function OwnerVisitors() {
   }
 
   const handleGenerateCode = () => {
-    const code = 'VST-' + String(visitors.length + 1).padStart(3, '0')
+    // Generate a fresh random code every time
+    const random = Math.floor(Math.random() * 1000)
+    const code = 'VST-' + String(random).padStart(3, '0')
     setGeneratedCode(code)
   }
 
